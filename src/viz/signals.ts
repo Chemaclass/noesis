@@ -4,6 +4,9 @@ import type { TForwardTrace } from '../core/types';
 const LAYER_DURATION = 0.9;
 /** How many layers the ramp spans, so adjacent layers fade in overlapping. */
 const RAMP = 1.6;
+/** Where (in layers, behind the front) the brightness pulse peaks, and its width. */
+const PULSE_OFFSET = 0.8;
+const PULSE_WIDTH = 0.7;
 
 /** Smoothstep easing for soft fade-in/out. */
 function smoothstep(t: number): number {
@@ -63,6 +66,22 @@ export class SignalAnimator {
     const out = new Array<number>(this.layerCount);
     for (let l = 0; l < this.layerCount; l++) {
       out[l] = smoothstep((front - l) / RAMP);
+    }
+    return out;
+  }
+
+  /**
+   * Transient brightness boost per layer: a travelling bell that peaks as the
+   * wave front crosses each layer, then decays — so the signal flashes brighter
+   * as it passes. Zero when not animating (steady state).
+   */
+  pulse(): number[] {
+    const out = new Array<number>(this.layerCount).fill(0);
+    if (!this.playing) return out;
+    const front = this.elapsed / LAYER_DURATION;
+    for (let l = 0; l < this.layerCount; l++) {
+      const d = (front - l - PULSE_OFFSET) / PULSE_WIDTH;
+      out[l] = Math.exp(-d * d);
     }
     return out;
   }

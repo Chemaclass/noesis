@@ -42,15 +42,26 @@ export class Neurons {
 
   /**
    * Set per-neuron glow from activation levels (already normalized to [0,1]).
-   * `revealPerLayer[l]` dims a layer that the signal wave hasn't reached yet.
+   * `revealPerLayer[l]` dims a layer the wave hasn't reached; `pulsePerLayer[l]`
+   * briefly brightens active neurons as the wave front passes through.
    */
-  setLevels(levelsPerLayer: readonly (readonly number[])[], revealPerLayer: readonly number[]): void {
+  setLevels(
+    levelsPerLayer: readonly (readonly number[])[],
+    revealPerLayer: readonly number[],
+    pulsePerLayer: readonly number[] = [],
+  ): void {
+    const FLASH = 0.9;
     for (let l = 0; l < levelsPerLayer.length; l++) {
       const levels = levelsPerLayer[l] ?? [];
       const reveal = revealPerLayer[l] ?? 1;
+      const pulse = pulsePerLayer[l] ?? 0;
       const base = this.offsets[l] ?? 0;
       for (let n = 0; n < levels.length; n++) {
-        activationColor((levels[n] ?? 0) * reveal, this.scratch);
+        const level = levels[n] ?? 0;
+        const lit = level * reveal;
+        // flash scales with the neuron's own activation, so active neurons pop
+        const display = Math.min(1, lit + pulse * level * FLASH);
+        activationColor(display, this.scratch);
         this.mesh.setColorAt(base + n, this.scratch);
       }
     }
