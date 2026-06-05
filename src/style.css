@@ -15,9 +15,9 @@
 :root[data-theme='light'] {
   --cyan: #1769aa;
   --dim: #5b6b7a;
-  --bg-panel: rgba(255, 255, 255, 0.72);
+  --bg-panel: rgba(255, 255, 255, 0.78);
   --border: rgba(23, 105, 170, 0.32);
-  --page: #dce6f0;
+  --page: #e6edf4;
   --fg: #2a3a48;
   --strong: #06235c;
   --glow: transparent;
