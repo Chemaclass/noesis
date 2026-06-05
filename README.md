@@ -13,14 +13,15 @@ honest little neural net on the inside.
 
 ## What it does
 
-- A fully-connected network: `28×28 input → 48 → 24 → 10 outputs (0–9)`.
-- **Real digit recognition**: ships a model trained on MNIST to **~97.5% test
-  accuracy**. Pick a digit or **draw your own** — it actually classifies it.
+- A fully-connected network: `28×28 input → 64 → 32 → 10 outputs (0–9)`.
+- **Real digit recognition**: ships a model trained on MNIST (AdamW + light affine
+  augmentation) to **~98% test accuracy**, robust to hand-drawn input. Pick a digit
+  or **draw your own** — it actually classifies it.
 - **Forward inference** rendered in 3D with [Three.js](https://threejs.org/) +
   bloom glow: neurons fire, connections glow by weight, the predicted digit lights up.
 - A collapsible **info panel** (how-it-works, live layer stats, legend, the math).
-- Toggle the activation function, compare against an **untrained** brain, step or
-  play the signal wave.
+- **Light / dark theme** toggle (persisted).
+- Compare against an **untrained** brain, step or play the signal wave.
 
 ## Quick start
 
@@ -35,10 +36,11 @@ recognize it.
 ## Train the model
 
 The bundled `src/data/model.json` is generated offline — it downloads MNIST and
-trains a small MLP (no dependencies, pure Node):
+trains the MLP with AdamW, minibatches and light affine augmentation (no
+dependencies, pure Node):
 
 ```bash
-npm run train    # ~60s; rewrites src/data/model.json + 10 sample digits
+npm run train    # ~100s; rewrites src/data/model.json + 10 sample digits
 ```
 
 ## Scripts

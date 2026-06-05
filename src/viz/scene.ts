@@ -17,6 +17,12 @@ import { computeLayout } from './layout';
 import { Connections, type TConnectionStats } from './connections';
 import { Neurons } from './neurons';
 import { SignalAnimator, normalizeLevels } from './signals';
+import {
+  type TTheme,
+  backgroundColor,
+  bloomStrength,
+  setPaletteTheme,
+} from './palette';
 
 /** Result of (re)building the network view — fed into the HUD. */
 export type TBuildResult = {
@@ -34,14 +40,18 @@ export class Scene {
   private readonly camera: PerspectiveCamera;
   private readonly controls: OrbitControls;
   private readonly composer: EffectComposer;
+  private readonly bloom: UnrealBloomPass;
 
   private neurons: Neurons | null = null;
   private connections: Connections | null = null;
+  private network: TNetwork | null = null;
+  private trace: TForwardTrace | null = null;
   private animator = new SignalAnimator(0);
   private levels: number[][] = [];
 
   private lastTime = 0;
   private viewRadius = 30;
+  private lastRadius = 30;
   /** Normalized view direction (camera sits along this from the target). */
   private readonly viewDir = new Vector3(0.85, 0.4, 1).normalize();
 
@@ -50,7 +60,7 @@ export class Scene {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.toneMapping = ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.1;
-    this.scene.background = new Color(0x03060f);
+    this.scene.background = new Color(backgroundColor());
 
     this.camera = new PerspectiveCamera(50, 1, 0.1, 4000);
 
@@ -62,10 +72,10 @@ export class Scene {
 
     const renderPass = new RenderPass(this.scene, this.camera);
     // Modest bloom: only the brightest (firing neurons) blooms, not every line.
-    const bloom = new UnrealBloomPass(new Vector2(1, 1), 0.55, 0.5, 0.22);
+    this.bloom = new UnrealBloomPass(new Vector2(1, 1), bloomStrength(), 0.5, 0.22);
     this.composer = new EffectComposer(this.renderer);
     this.composer.addPass(renderPass);
-    this.composer.addPass(bloom);
+    this.composer.addPass(this.bloom);
 
     this.resize();
     window.addEventListener('resize', () => this.resize());
@@ -73,29 +83,49 @@ export class Scene {
 
   /** Tear down the old view (if any) and build geometry for `network`. */
   build(network: TNetwork): TBuildResult {
+    const result = this.rebuildView(network);
+    this.frameCamera(this.lastRadius);
+    return result;
+  }
+
+  /** Recreate neuron/connection geometry without touching the camera. */
+  private rebuildView(network: TNetwork): TBuildResult {
     this.disposeView();
+    this.network = network;
 
     const sizes = [network.inputSize, ...network.layers.map((l) => l.size)];
     const layout = computeLayout(sizes);
+    this.lastRadius = layout.radius;
 
     this.neurons = new Neurons(layout);
     this.connections = new Connections(network, layout);
     this.scene.add(this.connections.object, this.neurons.mesh);
 
     this.animator = new SignalAnimator(network.layers.length);
-    this.frameCamera(layout.radius);
-
     return { sizes, edges: this.connections.stats };
+  }
+
+  /** Switch light/dark theme: re-tint scene, bloom, palette and geometry. */
+  setTheme(theme: TTheme): void {
+    setPaletteTheme(theme);
+    (this.scene.background as Color).setHex(backgroundColor());
+    this.bloom.strength = bloomStrength();
+    if (this.network) {
+      this.rebuildView(this.network); // colors are baked into geometry
+      if (this.trace) this.show(this.trace);
+    }
   }
 
   /** Load a trace and animate the signal sweeping through the layers. */
   play(trace: TForwardTrace): void {
+    this.trace = trace;
     this.levels = normalizeLevels(trace);
     this.animator.play();
   }
 
   /** Load a trace and reveal it fully at once. */
   show(trace: TForwardTrace): void {
+    this.trace = trace;
     this.levels = normalizeLevels(trace);
     this.animator.complete();
     this.applyLevels();

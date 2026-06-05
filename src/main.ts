@@ -5,8 +5,19 @@ import type { TActivationName, TForwardTrace, TNetwork } from './core/types';
 import { MODEL_ACCURACY, loadTrainedNetwork, sampleDigit } from './data/model';
 import { DrawPad } from './viz/draw';
 import { Hud, type THudState } from './viz/hud';
+import { type TTheme, setPaletteTheme } from './viz/palette';
 import { Panel, type TPanelLayer, type TPanelState } from './viz/panel';
 import { Scene } from './viz/scene';
+
+const THEME_KEY = 'noesis-theme';
+
+function readTheme(): TTheme {
+  return localStorage.getItem(THEME_KEY) === 'light' ? 'light' : 'dark';
+}
+
+function applyThemeAttr(theme: TTheme): void {
+  document.documentElement.setAttribute('data-theme', theme);
+}
 
 const INPUT_SIZE = 784; // 28x28
 const LAYER_LABELS = ['Input 28×28', 'Hidden #1', 'Hidden #2', 'Output 0–9'] as const;
@@ -26,8 +37,8 @@ function randomNetwork(seed: number, hidden: TActivationName): TNetwork {
     inputSize: INPUT_SIZE,
     seed,
     layers: [
-      { size: 48, activation: hidden },
-      { size: 24, activation: hidden },
+      { size: 64, activation: hidden },
+      { size: 32, activation: hidden },
       { size: 10, activation: 'linear' },
     ],
   });
@@ -61,6 +72,10 @@ function main(): void {
   const hudRoot = document.querySelector<HTMLElement>('#hud');
   const panelRoot = document.querySelector<HTMLElement>('#panel');
   if (!canvas || !hudRoot || !panelRoot) throw new Error('missing #scene / #hud / #panel');
+
+  let theme = readTheme();
+  applyThemeAttr(theme);
+  setPaletteTheme(theme); // before Scene reads background/bloom from the palette
 
   const scene = new Scene(canvas);
   const panel = new Panel(panelRoot);
@@ -104,6 +119,12 @@ function main(): void {
       runInput(state.input, true);
     },
     onDraw: () => drawPad.toggle(),
+    onTheme: () => {
+      theme = theme === 'dark' ? 'light' : 'dark';
+      localStorage.setItem(THEME_KEY, theme);
+      applyThemeAttr(theme);
+      scene.setTheme(theme);
+    },
   });
 
   function rebuild(network: TNetwork): void {

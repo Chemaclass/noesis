@@ -1,5 +1,4 @@
 import {
-  AdditiveBlending,
   BufferGeometry,
   Color,
   Float32BufferAttribute,
@@ -9,7 +8,7 @@ import {
 import { mulberry32 } from '../core/rng';
 import type { TNetwork } from '../core/types';
 import type { TLayout } from './layout';
-import { WEIGHT_NEGATIVE, WEIGHT_POSITIVE } from './palette';
+import { lineBlending, lineOpacity, weightColor } from './palette';
 
 /** Hard cap on rendered edges per layer-pair, so dense layers stay at 60fps. */
 const MAX_EDGES_PER_PAIR = 4000;
@@ -65,8 +64,7 @@ export class Connections {
           if (!from) continue;
           const w = row[i] ?? 0;
           const mag = Math.min(1, Math.abs(w) / maxAbs);
-          // gamma-curve the magnitude so only strong weights are bright
-          edgeColor.copy(w >= 0 ? WEIGHT_POSITIVE : WEIGHT_NEGATIVE).multiplyScalar(mag * mag * 0.42);
+          weightColor(w >= 0, mag, edgeColor);
 
           verts.push(from[0], from[1], from[2], to[0], to[1], to[2]);
           colors.push(
@@ -84,8 +82,8 @@ export class Connections {
     const material = new LineBasicMaterial({
       vertexColors: true,
       transparent: true,
-      opacity: 0.38,
-      blending: AdditiveBlending,
+      opacity: lineOpacity(),
+      blending: lineBlending(),
       depthWrite: false,
       toneMapped: false,
     });

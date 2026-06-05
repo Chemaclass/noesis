@@ -1,9 +1,27 @@
-:root {
+:root,
+:root[data-theme='dark'] {
   --cyan: #2bd6ff;
   --dim: #5e7d9a;
   --bg-panel: rgba(4, 12, 26, 0.55);
   --border: rgba(43, 214, 255, 0.25);
+  --page: #02040a;
+  --fg: #b9d4e6;
+  --strong: #eaffff;
+  --glow: rgba(43, 214, 255, 0.4);
+  --accent-soft: rgba(43, 214, 255, 0.15);
   font-family: 'Courier New', ui-monospace, monospace;
+}
+
+:root[data-theme='light'] {
+  --cyan: #1769aa;
+  --dim: #5b6b7a;
+  --bg-panel: rgba(255, 255, 255, 0.72);
+  --border: rgba(23, 105, 170, 0.32);
+  --page: #dce6f0;
+  --fg: #2a3a48;
+  --strong: #06235c;
+  --glow: transparent;
+  --accent-soft: rgba(23, 105, 170, 0.12);
 }
 
 * {
@@ -15,7 +33,7 @@ body {
   margin: 0;
   height: 100%;
   overflow: hidden;
-  background: #02040a;
+  background: var(--page);
   color: var(--cyan);
 }
 
@@ -31,7 +49,7 @@ body {
   position: fixed;
   inset: 0;
   pointer-events: none;
-  text-shadow: 0 0 8px rgba(43, 214, 255, 0.4);
+  text-shadow: 0 0 8px var(--glow);
 }
 
 .hud-panel {
@@ -94,8 +112,8 @@ body {
 .hud-predicted {
   font-size: 64px;
   line-height: 1;
-  color: #eaffff;
-  text-shadow: 0 0 24px rgba(43, 214, 255, 0.8);
+  color: var(--strong);
+  text-shadow: 0 0 24px var(--glow);
 }
 
 .hud-confidence {
@@ -139,8 +157,8 @@ body {
 }
 
 .hud-btn:hover:not(:disabled) {
-  background: rgba(43, 214, 255, 0.15);
-  box-shadow: 0 0 12px rgba(43, 214, 255, 0.4);
+  background: var(--accent-soft);
+  box-shadow: 0 0 12px var(--glow);
 }
 
 .hud-btn:disabled,
@@ -171,10 +189,10 @@ body {
   z-index: 5;
   display: flex;
   flex-direction: column;
-  background: linear-gradient(180deg, rgba(6, 18, 38, 0.7), rgba(4, 10, 24, 0.6));
+  background: var(--bg-panel);
   border: 1px solid var(--border);
   border-radius: 8px;
-  box-shadow: 0 0 32px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 0 32px rgba(0, 0, 0, 0.35);
   backdrop-filter: blur(6px);
   font-size: 12px;
   line-height: 1.5;
@@ -205,8 +223,8 @@ body {
   flex-direction: column;
   font-size: 18px;
   letter-spacing: 0.2em;
-  color: #eaffff;
-  text-shadow: 0 0 12px rgba(43, 214, 255, 0.6);
+  color: var(--strong);
+  text-shadow: 0 0 12px var(--glow);
 }
 
 .panel-logo small {
@@ -279,7 +297,7 @@ body {
 
 .section-body {
   padding: 0 12px 12px;
-  color: #b9d4e6;
+  color: var(--fg);
 }
 
 .section-body p {
@@ -300,11 +318,11 @@ body {
 }
 
 .section-body pre {
-  background: rgba(43, 214, 255, 0.08);
+  background: var(--accent-soft);
   border-left: 2px solid var(--border);
   padding: 8px 10px;
   margin: 6px 0;
-  color: #eaffff;
+  color: var(--strong);
   white-space: pre-wrap;
 }
 
@@ -316,7 +334,7 @@ body {
 }
 
 .math-act {
-  color: #eaffff;
+  color: var(--strong);
   font-weight: bold;
 }
 
@@ -362,7 +380,7 @@ body {
   background: #05143a;
 }
 .sw-hot {
-  background: #eaffff;
+  background: var(--strong);
 }
 
 /* ---------- draw pad ---------- */

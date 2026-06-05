@@ -8,6 +8,7 @@ export type THudCallbacks = {
   readonly onRandomize: () => void;
   readonly onTrained: () => void;
   readonly onDraw: () => void;
+  readonly onTheme: () => void;
 };
 
 export type THudState = {
@@ -64,6 +65,7 @@ export class Hud {
     bar.appendChild(button('⤓ Step', 'hud-step', cb.onStep));
     bar.appendChild(button('🧠 Trained', 'hud-trained', cb.onTrained));
     bar.appendChild(button('⟳ Random', 'hud-rand', cb.onRandomize));
+    bar.appendChild(button('◑ Theme', 'hud-theme', cb.onTheme));
     return bar;
   }
 

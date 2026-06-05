@@ -1,6 +1,7 @@
 // Offline MNIST trainer for noesis. Self-contained Node ESM (no deps).
-// Downloads MNIST, trains a 784-48-24-10 MLP (relu, linear logits, softmax+CE),
-// and exports src/data/model.json (base64 Float32 weights) for the app to load.
+// Trains a 784-64-32-10 MLP (ReLU, linear logits, softmax + cross-entropy) with
+// AdamW, minibatches and light affine augmentation so it tolerates hand-drawn
+// digits, then exports src/data/model.json (base64 Float32 weights + 10 samples).
 //
 // Run: node scripts/train.mjs
 import { gunzipSync } from 'node:zlib';
@@ -20,6 +21,23 @@ const FILES = {
   testLabels: 't10k-labels-idx1-ubyte.gz',
 };
 
+const ARCH = [784, 64, 32, 10];
+const ACTIVATIONS = ['relu', 'relu', 'linear'];
+const DIM = 28;
+
+// hyperparameters
+const EPOCHS = 18;
+const BATCH = 64;
+const LR = 0.001;
+const WD = 1e-4; // decoupled weight decay (AdamW)
+const B1 = 0.9;
+const B2 = 0.999;
+const EPS = 1e-8;
+// augmentation ranges
+const AUG_ROT = 0.18; // rad (~10°)
+const AUG_SCALE = 0.12;
+const AUG_SHIFT = 2.0; // px
+
 async function fetchGz(name) {
   mkdirSync(CACHE, { recursive: true });
   const path = join(CACHE, name);
@@ -35,9 +53,7 @@ async function fetchGz(name) {
 
 function parseImages(buf) {
   const count = buf.readUInt32BE(4);
-  const rows = buf.readUInt32BE(8);
-  const cols = buf.readUInt32BE(12);
-  const px = rows * cols;
+  const px = buf.readUInt32BE(8) * buf.readUInt32BE(12);
   const data = new Float32Array(count * px);
   for (let i = 0; i < count * px; i++) data[i] = buf[16 + i] / 255;
   return { count, px, data };
@@ -50,26 +66,7 @@ function parseLabels(buf) {
   return labels;
 }
 
-// --- tiny MLP ---------------------------------------------------------------
-const ARCH = [784, 48, 24, 10];
-
-// standard normal via Box-Muller
-function randn(rnd) {
-  let u = 0;
-  let v = 0;
-  while (u === 0) u = rnd();
-  while (v === 0) v = rnd();
-  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
-}
-
-function heInit(rows, cols, rnd) {
-  const w = new Float32Array(rows * cols);
-  const scale = Math.sqrt(2 / cols); // He: Var = 2/fan_in
-  for (let i = 0; i < w.length; i++) w[i] = randn(rnd) * scale;
-  return w;
-}
-
-// mulberry32 so a run is reproducible
+// mulberry32 PRNG (reproducible)
 function rng(seed) {
   let a = seed >>> 0;
   return () => {
@@ -80,32 +77,52 @@ function rng(seed) {
   };
 }
 
-function relu(x) {
-  return x > 0 ? x : 0;
+function randn(rnd) {
+  let u = 0;
+  let v = 0;
+  while (u === 0) u = rnd();
+  while (v === 0) v = rnd();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
 }
 
-function main() {
-  const rnd = rng(42);
+const relu = (x) => (x > 0 ? x : 0);
+
+function makeModel(rnd) {
   const W = [];
   const B = [];
+  const mW = [];
+  const vW = [];
+  const mB = [];
+  const vB = [];
   for (let l = 1; l < ARCH.length; l++) {
-    W.push(heInit(ARCH[l], ARCH[l - 1], rnd));
-    B.push(new Float32Array(ARCH[l]));
+    const rows = ARCH[l];
+    const cols = ARCH[l - 1];
+    const w = new Float32Array(rows * cols);
+    const scale = Math.sqrt(2 / cols);
+    for (let i = 0; i < w.length; i++) w[i] = randn(rnd) * scale;
+    W.push(w);
+    B.push(new Float32Array(rows));
+    mW.push(new Float32Array(rows * cols));
+    vW.push(new Float32Array(rows * cols));
+    mB.push(new Float32Array(rows));
+    vB.push(new Float32Array(rows));
   }
+  return { W, B, mW, vW, mB, vB };
+}
 
-  return { W, B, rnd };
+function zerosLike(arrs) {
+  return arrs.map((a) => new Float32Array(a.length));
 }
 
 function forward(model, x) {
-  const { W, B } = model;
   const acts = [x];
   const pre = [null];
   let cur = x;
-  for (let l = 0; l < W.length; l++) {
+  for (let l = 0; l < model.W.length; l++) {
     const inSize = ARCH[l];
     const outSize = ARCH[l + 1];
-    const w = W[l];
-    const b = B[l];
+    const w = model.W[l];
+    const b = model.B[l];
     const z = new Float32Array(outSize);
     for (let j = 0; j < outSize; j++) {
       let s = b[j];
@@ -114,7 +131,7 @@ function forward(model, x) {
       z[j] = s;
     }
     pre.push(z);
-    const last = l === W.length - 1;
+    const last = l === model.W.length - 1;
     const a = new Float32Array(outSize);
     for (let j = 0; j < outSize; j++) a[j] = last ? z[j] : relu(z[j]);
     acts.push(a);
@@ -136,42 +153,86 @@ function softmax(logits) {
   return out;
 }
 
-function trainStep(model, x, label, lr) {
-  const { W, B } = model;
+// accumulate gradients for one sample into gW/gB; returns loss
+function accumulate(model, gW, gB, x, label) {
   const { acts, pre } = forward(model, x);
   const probs = softmax(acts[acts.length - 1]);
   const loss = -Math.log(Math.max(probs[label], 1e-12));
 
-  // output gradient: softmax + cross-entropy => (p - onehot)
   let delta = new Float32Array(probs.length);
   for (let j = 0; j < probs.length; j++) delta[j] = probs[j] - (j === label ? 1 : 0);
 
-  // backprop through layers
-  for (let l = W.length - 1; l >= 0; l--) {
+  for (let l = model.W.length - 1; l >= 0; l--) {
     const inSize = ARCH[l];
     const outSize = ARCH[l + 1];
-    const w = W[l];
-    const b = B[l];
+    const w = model.W[l];
+    const gw = gW[l];
+    const gb = gB[l];
     const aIn = acts[l];
     const nextDelta = l > 0 ? new Float32Array(inSize) : null;
-
     for (let j = 0; j < outSize; j++) {
       const d = delta[j];
       const base = j * inSize;
       for (let i = 0; i < inSize; i++) {
         if (nextDelta) nextDelta[i] += w[base + i] * d;
-        w[base + i] -= lr * d * aIn[i];
+        gw[base + i] += d * aIn[i];
       }
-      b[j] -= lr * d;
+      gb[j] += d;
     }
-
     if (nextDelta) {
-      const zIn = pre[l]; // pre-activation of layer l (relu input)
+      const zIn = pre[l];
       for (let i = 0; i < inSize; i++) nextDelta[i] *= zIn[i] > 0 ? 1 : 0;
       delta = nextDelta;
     }
   }
   return loss;
+}
+
+// AdamW update of one parameter tensor
+function adamW(w, g, m, v, lr, t, scale) {
+  const bc1 = 1 - Math.pow(B1, t);
+  const bc2 = 1 - Math.pow(B2, t);
+  for (let i = 0; i < w.length; i++) {
+    const grad = g[i] * scale;
+    m[i] = B1 * m[i] + (1 - B1) * grad;
+    v[i] = B2 * v[i] + (1 - B2) * grad * grad;
+    const mh = m[i] / bc1;
+    const vh = v[i] / bc2;
+    w[i] -= lr * (mh / (Math.sqrt(vh) + EPS) + WD * w[i]);
+  }
+}
+
+// affine-augmented copy of a 28x28 image (rotate/scale/shift, bilinear)
+function augment(src, rnd) {
+  const ang = (rnd() * 2 - 1) * AUG_ROT;
+  const sc = 1 + (rnd() * 2 - 1) * AUG_SCALE;
+  const tx = (rnd() * 2 - 1) * AUG_SHIFT;
+  const ty = (rnd() * 2 - 1) * AUG_SHIFT;
+  const cos = Math.cos(ang);
+  const sin = Math.sin(ang);
+  const c = (DIM - 1) / 2;
+  const out = new Float32Array(DIM * DIM);
+  for (let y = 0; y < DIM; y++) {
+    for (let x = 0; x < DIM; x++) {
+      const dx = x - c;
+      const dy = y - c;
+      const sx = c + (cos * dx + sin * dy) / sc - tx;
+      const sy = c + (-sin * dx + cos * dy) / sc - ty;
+      const x0 = Math.floor(sx);
+      const y0 = Math.floor(sy);
+      if (x0 < 0 || y0 < 0 || x0 + 1 >= DIM || y0 + 1 >= DIM) continue;
+      const fx = sx - x0;
+      const fy = sy - y0;
+      const i = y0 * DIM + x0;
+      const v =
+        src[i] * (1 - fx) * (1 - fy) +
+        src[i + 1] * fx * (1 - fy) +
+        src[i + DIM] * (1 - fx) * fy +
+        src[i + DIM + 1] * fx * fy;
+      out[y * DIM + x] = v;
+    }
+  }
+  return out;
 }
 
 function evaluate(model, images, labels) {
@@ -191,8 +252,6 @@ function b64(f32) {
   return Buffer.from(f32.buffer, f32.byteOffset, f32.byteLength).toString('base64');
 }
 
-const ACTIVATIONS = ['relu', 'relu', 'linear'];
-
 async function run() {
   const [trI, trL, teI, teL] = await Promise.all([
     fetchGz(FILES.trainImages),
@@ -204,33 +263,49 @@ async function run() {
   const trainLabels = parseLabels(trL);
   const testImages = parseImages(teI);
   const testLabels = parseLabels(teL);
-  console.log(`train=${trainImages.count} test=${testImages.count}`);
+  console.log(`arch=${ARCH.join('-')} train=${trainImages.count} test=${testImages.count}`);
 
-  const model = main();
+  const rnd = rng(42);
+  const model = makeModel(rnd);
   const order = Uint32Array.from({ length: trainImages.count }, (_, i) => i);
-  const EPOCHS = 15;
-  let lr = 0.02;
+  let t = 0;
+  let best = 0;
 
   for (let epoch = 0; epoch < EPOCHS; epoch++) {
-    // shuffle
     for (let i = order.length - 1; i > 0; i--) {
-      const j = Math.floor(model.rnd() * (i + 1));
-      const t = order[i];
+      const j = Math.floor(rnd() * (i + 1));
+      const tmp = order[i];
       order[i] = order[j];
-      order[j] = t;
+      order[j] = tmp;
     }
+    const lr = LR * (0.5 + 0.5 * Math.cos((Math.PI * epoch) / EPOCHS)); // cosine decay
     const t0 = Date.now();
     let loss = 0;
+    const gW = zerosLike(model.W);
+    const gB = zerosLike(model.B);
+
     for (let k = 0; k < order.length; k++) {
       const n = order[k];
-      const x = trainImages.data.subarray(n * trainImages.px, (n + 1) * trainImages.px);
-      loss += trainStep(model, x, trainLabels[n], lr);
+      const raw = trainImages.data.subarray(n * trainImages.px, (n + 1) * trainImages.px);
+      const x = augment(raw, rnd);
+      loss += accumulate(model, gW, gB, x, trainLabels[n]);
+
+      if ((k + 1) % BATCH === 0 || k === order.length - 1) {
+        t++;
+        const scale = 1 / BATCH;
+        for (let l = 0; l < model.W.length; l++) {
+          adamW(model.W[l], gW[l], model.mW[l], model.vW[l], lr, t, scale);
+          adamW(model.B[l], gB[l], model.mB[l], model.vB[l], lr, t, scale);
+          gW[l].fill(0);
+          gB[l].fill(0);
+        }
+      }
     }
     const acc = evaluate(model, testImages, testLabels);
+    best = Math.max(best, acc);
     console.log(
-      `epoch ${String(epoch + 1).padStart(2)}/${EPOCHS}  lr=${lr.toFixed(4)}  loss=${(loss / order.length).toFixed(3)}  test=${(acc * 100).toFixed(2)}%  ${((Date.now() - t0) / 1000).toFixed(1)}s`,
+      `epoch ${String(epoch + 1).padStart(2)}/${EPOCHS}  lr=${lr.toFixed(5)}  loss=${(loss / order.length).toFixed(3)}  test=${(acc * 100).toFixed(2)}%  ${((Date.now() - t0) / 1000).toFixed(1)}s`,
     );
-    lr *= 0.92;
   }
 
   const testAccuracy = evaluate(model, testImages, testLabels);
@@ -242,8 +317,7 @@ async function run() {
     b: b64(model.B[l]),
   }));
 
-  // One real, correctly-classified test image per digit 0-9, so the preset
-  // buttons show genuine handwriting the model recognizes (not a font glyph).
+  // one real, correctly-classified test image per digit 0-9
   const samples = new Array(10).fill(null);
   for (let n = 0; n < testLabels.length && samples.includes(null); n++) {
     const label = testLabels[n];
@@ -251,19 +325,19 @@ async function run() {
     const x = testImages.data.subarray(n * testImages.px, (n + 1) * testImages.px);
     const { acts } = forward(model, x);
     const out = acts[acts.length - 1];
-    let best = 0;
-    for (let j = 1; j < out.length; j++) if (out[j] > out[best]) best = j;
-    if (best === label) samples[label] = b64(Float32Array.from(x));
+    let b = 0;
+    for (let j = 1; j < out.length; j++) if (out[j] > out[b]) b = j;
+    if (b === label) samples[label] = b64(Float32Array.from(x));
   }
 
-  const out = {
+  const outObj = {
     inputSize: ARCH[0],
     layers,
     samples,
     testAccuracy: Number(testAccuracy.toFixed(4)),
   };
-  writeFileSync(OUT, JSON.stringify(out));
-  console.log(`wrote ${OUT}  (test acc ${(testAccuracy * 100).toFixed(2)}%)`);
+  writeFileSync(OUT, JSON.stringify(outObj));
+  console.log(`\nwrote ${OUT}  (test acc ${(testAccuracy * 100).toFixed(2)}%, best ${(best * 100).toFixed(2)}%)`);
 }
 
 run().catch((e) => {
