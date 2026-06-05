@@ -50,10 +50,13 @@ export class Scene {
   private levels: number[][] = [];
 
   private lastTime = 0;
-  private viewRadius = 30;
-  private lastRadius = 30;
-  /** Normalized view direction (camera sits along this from the target). */
-  private readonly viewDir = new Vector3(0.85, 0.4, 1).normalize();
+  /** Center of the input plane (the digit "face") — the camera's look-at target. */
+  private readonly faceCenter = new Vector3();
+  /** Radius of the input plane, and of the whole network. */
+  private inputRadius = 14;
+  private netRadius = 30;
+  /** Camera direction: nearly head-on to the input plane, with a slight tilt. */
+  private readonly viewDir = new Vector3(-1, 0.07, 0.12).normalize();
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new WebGLRenderer({ canvas, antialias: true });
@@ -67,8 +70,8 @@ export class Scene {
     this.controls = new OrbitControls(this.camera, canvas);
     this.controls.enableDamping = true;
     this.controls.enablePan = false;
-    this.controls.autoRotate = true;
-    this.controls.autoRotateSpeed = 0.35;
+    // Start framed on the digit face; user can orbit to watch the layer sweep.
+    this.controls.autoRotate = false;
 
     const renderPass = new RenderPass(this.scene, this.camera);
     // Modest bloom: only the brightest (firing neurons) blooms, not every line.
@@ -84,7 +87,7 @@ export class Scene {
   /** Tear down the old view (if any) and build geometry for `network`. */
   build(network: TNetwork): TBuildResult {
     const result = this.rebuildView(network);
-    this.frameCamera(this.lastRadius);
+    this.frameCamera();
     return result;
   }
 
@@ -95,7 +98,15 @@ export class Scene {
 
     const sizes = [network.inputSize, ...network.layers.map((l) => l.size)];
     const layout = computeLayout(sizes);
-    this.lastRadius = layout.radius;
+    this.netRadius = layout.radius;
+
+    // Measure the input plane (layer 0): its center on x and its in-plane radius.
+    const inputLayer = layout.positions[0] ?? [];
+    let ir = 1;
+    const cx = inputLayer[0]?.[0] ?? 0;
+    for (const [, y, z] of inputLayer) ir = Math.max(ir, Math.hypot(y, z));
+    this.faceCenter.set(cx, 0, 0);
+    this.inputRadius = ir;
 
     this.neurons = new Neurons(layout);
     this.connections = new Connections(network, layout);
@@ -152,26 +163,27 @@ export class Scene {
     this.neurons.setLevels(this.levels, this.animator.reveal());
   }
 
-  private frameCamera(radius: number): void {
-    this.viewRadius = radius;
-    this.controls.target.set(0, 0, 0);
+  /** Frame the camera head-on to the input plane (the digit "face"). */
+  private frameCamera(): void {
+    this.controls.target.copy(this.faceCenter);
     this.fitCamera();
   }
 
-  /** Distance that fits the bounding sphere within the narrower of the two FOVs. */
-  private fitDistance(): number {
+  /** Distance that fits a sphere of `radius` within the narrower of the two FOVs. */
+  private fitDistance(radius: number): number {
     const vHalf = MathUtils.degToRad(this.camera.fov) / 2;
     const hHalf = Math.atan(Math.tan(vHalf) * this.camera.aspect);
     const minHalf = Math.min(vHalf, hHalf);
-    return (this.viewRadius / Math.sin(minHalf)) * 1.12;
+    return (radius / Math.sin(minHalf)) * 1.12;
   }
 
-  /** Place the camera along the fixed view direction at the fitting distance. */
+  /** Place the camera facing the input plane, framing the digit. */
   private fitCamera(): void {
-    const dist = this.fitDistance();
+    const dist = this.fitDistance(this.inputRadius);
     this.camera.position.copy(this.viewDir).multiplyScalar(dist).add(this.controls.target);
-    this.controls.minDistance = dist * 0.45;
-    this.controls.maxDistance = dist * 2.5;
+    this.controls.minDistance = dist * 0.4;
+    // allow zooming out far enough to see the whole network from any angle
+    this.controls.maxDistance = this.fitDistance(this.netRadius) * 1.8;
     this.controls.update();
   }
 
