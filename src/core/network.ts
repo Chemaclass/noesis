@@ -1,0 +1,95 @@
+import { forwardLayer } from './layer';
+import { gaussian, mulberry32 } from './rng';
+import type { TActivationName, TForwardTrace, TLayer, TNetwork } from './types';
+
+/** Spec for one layer when building a network. */
+export type TLayerSpec = {
+  readonly size: number;
+  readonly activation: TActivationName;
+};
+
+export type TNetworkSpec = {
+  readonly inputSize: number;
+  readonly layers: readonly TLayerSpec[];
+  readonly seed?: number;
+};
+
+/**
+ * Build a fully-connected network with random (He-ish scaled) weights.
+ * Deterministic given a seed. No training here — v1 is forward inference only.
+ */
+export function createNetwork(spec: TNetworkSpec): TNetwork {
+  const rng = mulberry32(spec.seed ?? 1);
+  const layers: TLayer[] = [];
+  let inputSize = spec.inputSize;
+
+  for (const layerSpec of spec.layers) {
+    const scale = Math.sqrt(2 / inputSize);
+    const weights: number[][] = [];
+    const biases: number[] = [];
+
+    for (let j = 0; j < layerSpec.size; j++) {
+      const row: number[] = new Array<number>(inputSize);
+      for (let i = 0; i < inputSize; i++) row[i] = gaussian(rng) * scale;
+      weights.push(row);
+      biases.push(0);
+    }
+
+    layers.push({
+      size: layerSpec.size,
+      inputSize,
+      weights,
+      biases,
+      activation: layerSpec.activation,
+    });
+    inputSize = layerSpec.size;
+  }
+
+  return { inputSize: spec.inputSize, layers };
+}
+
+/** Run a full forward pass, capturing every layer's z and a. */
+export function forward(network: TNetwork, input: readonly number[]): TForwardTrace {
+  if (input.length !== network.inputSize) {
+    throw new Error(`network expects input of size ${network.inputSize}, got ${input.length}`);
+  }
+
+  const traces = [];
+  let current: readonly number[] = input;
+  for (const layer of network.layers) {
+    const trace = forwardLayer(current, layer);
+    traces.push(trace);
+    current = trace.a;
+  }
+
+  return { input, layers: traces };
+}
+
+/** Return a copy of the network with the activation of all hidden layers swapped. */
+export function withHiddenActivation(network: TNetwork, activation: TActivationName): TNetwork {
+  const last = network.layers.length - 1;
+  return {
+    inputSize: network.inputSize,
+    layers: network.layers.map((layer, i) => (i === last ? layer : { ...layer, activation })),
+  };
+}
+
+/** Index of the highest output-layer activation — the predicted class. */
+export function argmax(values: readonly number[]): number {
+  let best = 0;
+  let bestVal = values[0] ?? -Infinity;
+  for (let i = 1; i < values.length; i++) {
+    const v = values[i] ?? -Infinity;
+    if (v > bestVal) {
+      bestVal = v;
+      best = i;
+    }
+  }
+  return best;
+}
+
+/** The network's prediction for an input: argmax over the final layer's activations. */
+export function predict(trace: TForwardTrace): number {
+  const last = trace.layers[trace.layers.length - 1];
+  return last ? argmax(last.a) : -1;
+}
