@@ -24,6 +24,8 @@ export type TPanelState = {
  * collapses to a thin rail.
  */
 export class Panel {
+  private readonly root: HTMLElement;
+  private readonly toggle: HTMLButtonElement | null;
   private readonly live: HTMLElement;
   private readonly mathActivation: HTMLElement;
   private readonly accuracyEl: HTMLElement;
@@ -31,15 +33,13 @@ export class Panel {
   constructor(root: HTMLElement) {
     root.innerHTML = '';
     root.classList.add('panel');
+    this.root = root;
 
     const header = document.createElement('div');
     header.className = 'panel-title';
     header.innerHTML = `<span class="panel-logo">noesis<small>neural brain</small></span><button class="panel-toggle" title="Collapse panel" aria-label="Toggle panel">‹</button>`;
-    const toggle = header.querySelector<HTMLButtonElement>('.panel-toggle');
-    toggle?.addEventListener('click', () => {
-      const collapsed = root.classList.toggle('panel--collapsed');
-      toggle.textContent = collapsed ? '›' : '‹';
-    });
+    this.toggle = header.querySelector<HTMLButtonElement>('.panel-toggle');
+    this.toggle?.addEventListener('click', () => this.setCollapsed(!this.isCollapsed()));
     root.appendChild(header);
 
     const body = document.createElement('div');
@@ -91,6 +91,15 @@ a_j = f(z_j)</pre>
       `<p>Confidence = softmax over the 10 output logits.</p>`,
     );
     body.appendChild(math.el);
+  }
+
+  isCollapsed(): boolean {
+    return this.root.classList.contains('panel--collapsed');
+  }
+
+  setCollapsed(collapsed: boolean): void {
+    this.root.classList.toggle('panel--collapsed', collapsed);
+    if (this.toggle) this.toggle.textContent = collapsed ? '›' : '‹';
   }
 
   update(state: TPanelState): void {

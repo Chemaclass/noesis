@@ -83,6 +83,12 @@ function main(): void {
   const scene = new Scene(canvas);
   const panel = new Panel(panelRoot);
 
+  // Auto-collapse the info panel when both side panels won't comfortably fit.
+  const narrow = window.matchMedia('(max-width: 1024px)');
+  const applyNarrow = (): void => panel.setCollapsed(narrow.matches);
+  applyNarrow();
+  narrow.addEventListener('change', applyNarrow);
+
   const trained = loadTrainedNetwork();
   const state: TState = {
     mode: 'trained',
