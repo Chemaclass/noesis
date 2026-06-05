@@ -146,7 +146,7 @@ a_j = f(z_j)`}</pre>
       <footer className="panel-footer">
         <a
           className="footer-link"
-          href="https://chemaclass.github.io/noesis/"
+          href="https://github.com/Chemaclass/noesis"
           target="_blank"
           rel="noreferrer noopener"
           title="Source code on GitHub"
