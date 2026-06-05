@@ -15,3 +15,6 @@ AGENTS.md
 agnostic-ai.local.yaml
 .agnostic-ai/.sync-state
 .agnostic-ai/packs/
+
+# training cache
+scripts/.cache/
