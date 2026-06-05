@@ -91,53 +91,59 @@ export class DrawPad {
     this.canvas.addEventListener('pointerleave', end);
   }
 
-  /** Preprocess the canvas into a centered 28×28 grayscale input vector. */
+  /**
+   * Preprocess the canvas into a 28×28 input the way MNIST images were made:
+   * crop to the ink, scale the longest side to 20px, then translate so the
+   * ink's center of mass sits at the center of the 28×28 field.
+   */
   private toInput(): number[] {
     const src = this.ctx.getImageData(0, 0, CANVAS_PX, CANVAS_PX).data;
+    const out = new Array<number>(DIGIT_SIZE * DIGIT_SIZE).fill(0);
 
-    // Bounding box of the ink (red channel == luminance on grayscale).
+    // Bounding box + center of mass of the ink (red channel == luminance).
     let minX = CANVAS_PX;
     let minY = CANVAS_PX;
-    let maxX = 0;
-    let maxY = 0;
+    let maxX = -1;
+    let maxY = -1;
+    let sum = 0;
+    let cx = 0;
+    let cy = 0;
     for (let y = 0; y < CANVAS_PX; y++) {
       for (let x = 0; x < CANVAS_PX; x++) {
-        if ((src[(y * CANVAS_PX + x) * 4] ?? 0) > 32) {
+        const v = src[(y * CANVAS_PX + x) * 4] ?? 0;
+        if (v > 24) {
           if (x < minX) minX = x;
           if (x > maxX) maxX = x;
           if (y < minY) minY = y;
           if (y > maxY) maxY = y;
+          sum += v;
+          cx += x * v;
+          cy += y * v;
         }
       }
     }
-    const out = new Array<number>(DIGIT_SIZE * DIGIT_SIZE).fill(0);
-    if (maxX < minX) return out; // empty
+    if (maxX < minX || sum === 0) return out; // empty
 
+    cx /= sum;
+    cy /= sum;
     const bw = maxX - minX + 1;
     const bh = maxY - minY + 1;
-    const scale = 20 / Math.max(bw, bh); // fit longest side into ~20px
+    const scale = 20 / Math.max(bw, bh); // longest side -> 20px (MNIST box)
 
-    // Scale the cropped ink into a centered 28×28 via an offscreen canvas.
     const tmp = document.createElement('canvas');
     tmp.width = DIGIT_SIZE;
     tmp.height = DIGIT_SIZE;
     const tctx = tmp.getContext('2d');
     if (!tctx) return out;
+    tctx.imageSmoothingEnabled = true;
     tctx.fillStyle = '#000';
     tctx.fillRect(0, 0, DIGIT_SIZE, DIGIT_SIZE);
-    const dw = bw * scale;
-    const dh = bh * scale;
-    tctx.drawImage(
-      this.canvas,
-      minX,
-      minY,
-      bw,
-      bh,
-      (DIGIT_SIZE - dw) / 2,
-      (DIGIT_SIZE - dh) / 2,
-      dw,
-      dh,
-    );
+
+    // Map the full source so the center of mass lands at (14, 14).
+    const center = DIGIT_SIZE / 2;
+    const dx = center - cx * scale;
+    const dy = center - cy * scale;
+    tctx.drawImage(this.canvas, dx, dy, CANVAS_PX * scale, CANVAS_PX * scale);
 
     const px = tctx.getImageData(0, 0, DIGIT_SIZE, DIGIT_SIZE).data;
     for (let i = 0; i < out.length; i++) out[i] = (px[i * 4] ?? 0) / 255;

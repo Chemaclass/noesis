@@ -14,6 +14,7 @@ export type THudState = {
   readonly layerLabels: readonly string[];
   readonly neuronCounts: readonly number[];
   readonly activation: TActivationName;
+  readonly activationLocked: boolean;
   readonly edgesRendered: number;
   readonly edgesTotal: number;
   readonly predicted: number;
@@ -67,7 +68,14 @@ export class Hud {
   }
 
   update(state: THudState): void {
-    this.activationBtn.textContent = `Activation: ${state.activation} [click]`;
+    this.activationBtn.disabled = state.activationLocked;
+    this.activationBtn.classList.toggle('locked', state.activationLocked);
+    this.activationBtn.title = state.activationLocked
+      ? 'Trained model is fixed to ReLU — switch to Random to experiment'
+      : 'Cycle the activation function';
+    this.activationBtn.textContent = state.activationLocked
+      ? `Activation: ${state.activation} 🔒`
+      : `Activation: ${state.activation} [click]`;
     this.edges.textContent = `Edges: ${fmt(state.edgesRendered)} / ${fmt(state.edgesTotal)}`;
     this.predicted.textContent = String(state.predicted);
     this.confidence.textContent = `${(state.confidence * 100).toFixed(1)}% confident`;

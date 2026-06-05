@@ -83,6 +83,7 @@ function main(): void {
   const hud = new Hud(hudRoot, {
     onDigit: (d) => runInput(sampleDigit(d), true),
     onActivation: () => {
+      if (state.mode === 'trained') return; // trained net is fixed to ReLU
       state.hiddenActivation = nextActivation(state.hiddenActivation);
       state.network = withHiddenActivation(state.network, state.hiddenActivation);
       scene.build(state.network); // weights unchanged, geometry same; recolor
@@ -153,6 +154,7 @@ function main(): void {
       layerLabels: LAYER_LABELS,
       neuronCounts: sizes,
       activation: state.hiddenActivation,
+      activationLocked: state.mode === 'trained',
       edgesRendered,
       edgesTotal,
       predicted: predict(state.trace),
