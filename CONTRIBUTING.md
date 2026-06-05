@@ -5,11 +5,12 @@ codebase coherent and the review loop fast.
 
 ## Golden rules
 
-1. **Keep the engine pure.** Code under `src/core/` must have **zero** runtime
-   dependencies and never touch the DOM or Three.js. It's the testable "brain".
-   Visualization (`src/viz/`) is a thin layer on top — it may depend on the
-   engine, never the reverse.
-2. **Geometry is pure too.** `src/viz/layout.ts` computes positions with no
+1. **Respect the layers.** Dependencies point inward: `ui → app → domain`.
+   `src/domain/` (the engine) has **zero** runtime deps and never touches React,
+   Three.js, or the DOM. `src/app/` holds services + the `useNoesis` hook.
+   `src/rendering/` is the Three.js engine. `src/ui/` is React components only —
+   no business logic, call the hook.
+2. **Geometry is pure too.** `src/rendering/layout.ts` computes positions with no
    Three.js import, so it stays unit-testable. Keep it that way.
 3. **Types start with `T`** (e.g. `TNetwork`, `TForwardTrace`) and we use `type`,
    never `interface`.
@@ -38,23 +39,23 @@ npm run typecheck && npm run lint && npm test && npm run build
 
 ## Where things live
 
-| Path                  | Responsibility                                          |
-| --------------------- | ------------------------------------------------------- |
-| `src/core/`           | Network math: activations, layers, forward pass, RNG.   |
-| `src/viz/layout.ts`   | Pure 3D positioning of neurons.                         |
-| `src/viz/scene.ts`    | Three.js renderer, camera, bloom, render loop.          |
-| `src/viz/neurons.ts`  | Instanced neuron spheres + per-neuron glow.             |
-| `src/viz/connections.ts` | Weighted line-field between layers (subsampled).     |
-| `src/viz/signals.ts`  | The layer-by-layer activation wave animation.           |
-| `src/viz/hud.ts`      | DOM telemetry + controls overlay.                       |
-| `src/data/digits.ts`  | 28×28 digit input rasterization.                        |
+| Path                     | Responsibility                                          |
+| ------------------------ | ------------------------------------------------------- |
+| `src/domain/`            | Network math: activations, layers, forward pass, RNG.   |
+| `src/app/`               | Services (inference, networks, preprocessing) + `useNoesis` hook. |
+| `src/rendering/layout.ts`| Pure 3D positioning of neurons.                         |
+| `src/rendering/scene.ts` | Three.js renderer, camera, bloom, render loop.          |
+| `src/rendering/{neurons,connections,signals}.ts` | Neuron/edge geometry + the wave animation. |
+| `src/ui/`                | React components (`App`, `SceneCanvas`, panels, draw).  |
+| `src/data/`, `public/model.json` | Trained-weight loading; `scripts/train.mjs` trains. |
 
 ## Adding things
 
 - **New activation function?** Add it to `ACTIVATIONS` in
-  `src/core/activations.ts` (the union type `TActivationName` updates with it) and
-  add a test. The HUD cycle picks it up automatically.
-- **New visual feature?** Put rendering in `src/viz/`, keep any math in `src/core/`.
+  `src/domain/activations.ts` (the union type `TActivationName` updates with it)
+  and add a test. The activation dropdown picks it up automatically.
+- **New visual feature?** Rendering in `src/rendering/`, state in `src/app/`,
+  markup in `src/ui/`, math in `src/domain/`.
 - **Always add/extend tests** for engine and layout changes — they run in Node
   without a browser, so keep new logic DOM-free where it belongs.
 

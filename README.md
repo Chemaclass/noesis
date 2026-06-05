@@ -13,10 +13,10 @@ honest little neural net on the inside.
 
 ## What it does
 
-- A fully-connected network: `28×28 input → 64 → 32 → 10 outputs (0–9)`.
-- **Real digit recognition**: ships a model trained on MNIST (AdamW + light affine
-  augmentation) to **~98% test accuracy**, robust to hand-drawn input. Pick a digit
-  or **draw your own** — it actually classifies it.
+- A fully-connected network: `28×28 input → 128 → 64 → 10 outputs (0–9)`.
+- **Real digit recognition**: ships a model trained on MNIST (AdamW, dropout,
+  label smoothing, light affine augmentation) to **~98.6% test accuracy**, robust
+  to hand-drawn input. Pick a digit or **draw your own** — it actually classifies it.
 - **Forward inference** rendered in 3D with [Three.js](https://threejs.org/) +
   bloom glow: neurons fire, connections glow by weight, the predicted digit lights up.
 - A collapsible **info panel** (how-it-works, live layer stats, legend, the math).
@@ -53,19 +53,21 @@ npm run train    # ~100s; rewrites src/data/model.json + 10 sample digits
 | `npm run typecheck` | `tsc --noEmit`                             |
 | `npm run lint`      | ESLint (type-checked rules)               |
 
-## How it's built
+## Architecture
 
-| Layer        | Where             | Notes                                                  |
-| ------------ | ----------------- | ------------------------------------------------------ |
-| Engine       | `src/core/`       | Pure TS, zero deps, no DOM — fully unit-testable.      |
-| Layout       | `src/viz/layout.ts` | Pure geometry, no Three.js — testable.               |
-| Rendering    | `src/viz/`        | Three.js: instanced neurons, line-field, bloom.        |
-| HUD + panel  | `src/viz/hud.ts`, `panel.ts` | DOM overlays: controls + collapsible info panel. |
-| Draw input   | `src/viz/draw.ts` | Paint a digit, MNIST-style preprocessing.              |
-| Trained model| `src/data/model.ts`, `scripts/train.mjs` | Load / train the MNIST weights.       |
+React (UI) + TypeScript, with the logic separated into clear layers:
 
-The engine never imports Three.js or touches the DOM, so the "brain" stays a
-clean, testable library and the visualization is a thin layer on top.
+| Layer            | Where             | Responsibility                                            |
+| ---------------- | ----------------- | --------------------------------------------------------- |
+| **Domain**       | `src/domain/`     | Pure NN engine: activations, layers, forward pass, RNG. Zero deps, no DOM — fully unit-tested. |
+| **Application**  | `src/app/`        | Framework-agnostic services + the `useNoesis` state hook (inference, networks, preprocessing). |
+| **Rendering**    | `src/rendering/`  | Three.js engine: instanced neurons, line-field, bloom, signal animation. `layout.ts` is pure + tested. |
+| **Presentation** | `src/ui/`         | React components: `SceneCanvas` (bridges to the engine), control & info panels, draw modal. |
+| **Data**         | `src/data/`, `public/model.json` | Loads the trained weights (fetched asset) + `scripts/train.mjs`. |
+
+Dependencies point inward: `ui → app → domain`; `rendering` and `data` are
+infrastructure. The domain never imports React, Three.js, or the DOM, so the
+"brain" stays a clean, testable library.
 
 ## Roadmap
 

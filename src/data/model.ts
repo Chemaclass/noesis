@@ -1,5 +1,4 @@
-import type { TActivationName, TLayer, TNetwork } from '../core/types';
-import modelJson from './model.json';
+import type { TActivationName, TLayer, TNetwork } from '../domain/types';
 
 /** Shape of one layer as stored in model.json (base64 Float32 weights). */
 type TModelLayer = {
@@ -20,10 +19,25 @@ type TModel = {
   readonly testAccuracy: number;
 };
 
-const MODEL = modelJson as TModel;
+let MODEL: TModel | null = null;
 
-/** Test-set accuracy of the bundled trained network (0–1). */
-export const MODEL_ACCURACY = MODEL.testAccuracy;
+/** Fetch the trained weights (served as a static asset, not bundled into JS). */
+export async function initModel(): Promise<void> {
+  if (MODEL) return;
+  const res = await fetch(`${import.meta.env.BASE_URL}model.json`);
+  if (!res.ok) throw new Error(`failed to load model.json: ${res.status}`);
+  MODEL = (await res.json()) as TModel;
+}
+
+function model(): TModel {
+  if (!MODEL) throw new Error('model not loaded — call initModel() first');
+  return MODEL;
+}
+
+/** Test-set accuracy of the trained network (0–1). */
+export function modelAccuracy(): number {
+  return model().testAccuracy;
+}
 
 /** Decode a base64-encoded little-endian Float32 array. */
 function decodeFloat32(b64: string): Float32Array {
@@ -47,18 +61,20 @@ function toMatrix(flat: Float32Array, size: number, inputSize: number): number[]
 
 /** A real MNIST handwriting sample (784-length input) for digit `d` (0–9). */
 export function sampleDigit(d: number): number[] {
-  const b64 = MODEL.samples[d % 10];
-  return b64 ? Array.from(decodeFloat32(b64)) : new Array<number>(MODEL.inputSize).fill(0);
+  const m = model();
+  const b64 = m.samples[d % 10];
+  return b64 ? Array.from(decodeFloat32(b64)) : new Array<number>(m.inputSize).fill(0);
 }
 
-/** Build the runtime `TNetwork` from the bundled trained model. */
+/** Build the runtime `TNetwork` from the trained model. */
 export function loadTrainedNetwork(): TNetwork {
-  const layers: TLayer[] = MODEL.layers.map((layer) => ({
+  const m = model();
+  const layers: TLayer[] = m.layers.map((layer) => ({
     size: layer.size,
     inputSize: layer.inputSize,
     activation: layer.activation as TActivationName,
     weights: toMatrix(decodeFloat32(layer.w), layer.size, layer.inputSize),
     biases: Array.from(decodeFloat32(layer.b)),
   }));
-  return { inputSize: MODEL.inputSize, layers };
+  return { inputSize: m.inputSize, layers };
 }

@@ -12,7 +12,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
-import type { TForwardTrace, TNetwork } from '../core/types';
+import type { TForwardTrace, TNetwork } from '../domain/types';
 import { computeLayout } from './layout';
 import { Connections, type TConnectionStats } from './connections';
 import { Neurons } from './neurons';

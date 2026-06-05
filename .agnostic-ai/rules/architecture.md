@@ -5,18 +5,23 @@ globs: "src/**"
 alwaysApply: true
 ---
 
-noesis is a feedforward neural-network simulator with a Three.js visualization.
-Respect the layering:
+noesis is a React + TypeScript app: a feedforward neural-network simulator with a
+Three.js visualization. It is organized in layers; dependencies point inward
+(`ui → app → domain`):
 
-- **`src/core/` is the pure engine.** Zero runtime dependencies. Never import
-  Three.js, never touch the DOM, `window`, or `document`. It is the testable
-  "brain": activations, layers, forward pass, RNG, network construction.
-- **`src/viz/` is the rendering layer.** It may depend on `src/core/`, never the
-  reverse. Three.js lives only here.
-- **`src/viz/layout.ts` stays pure** (no Three.js import) so neuron positioning is
-  unit-testable. Don't add rendering imports to it.
-- **`src/data/` holds inputs** (digit rasterization). Browser-only code is fine
-  here, but keep it out of `src/core/`.
+- **`src/domain/` is the pure engine.** Zero runtime dependencies. Never import
+  React, Three.js, or touch the DOM. The testable "brain": activations, layers,
+  forward pass, RNG, network construction.
+- **`src/app/` is the application layer.** Framework-agnostic services (inference,
+  networks, preprocessing) and the `useNoesis` React state hook. Depends on
+  `domain`, never on `rendering` internals beyond types.
+- **`src/rendering/` is the Three.js engine.** Imperative classes (Scene, Neurons,
+  Connections, signals, palette). May depend on `domain`, never the reverse.
+  **`src/rendering/layout.ts` stays pure** (no Three.js) so it's unit-testable.
+- **`src/ui/` is presentation.** React components only. `SceneCanvas` is the bridge
+  to the imperative engine (useEffect + ref). No business logic here — call the hook.
+- **`src/data/` + `public/model.json`** load the trained weights (fetched asset).
 
-When adding a feature, put math in `core`, geometry in `layout`, and rendering in
-`viz`. If you find yourself importing Three.js into `core`, the design is wrong.
+When adding a feature: math in `domain`, orchestration/state in `app`, geometry in
+`layout`, rendering in `rendering`, markup in `ui`. If `domain` ever imports React
+or Three.js, the design is wrong.

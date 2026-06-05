@@ -15,7 +15,7 @@ or assistants in commit messages.
 ## Tests
 
 - Vitest. Co-locate tests as `*.test.ts` beside the unit under test.
-- **Engine (`src/core/`) and `layout.ts` tests must be DOM-free** — they run in
+- **Engine (`src/domain/`) and `layout.ts` tests must be DOM-free** — they run in
   plain Node.
 - Add or extend tests for every engine/layout change. Cover the math (known
   activation outputs, hand-computed forward passes, distinct neuron positions).

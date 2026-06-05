@@ -1,4 +1,4 @@
-import type { TForwardTrace } from '../core/types';
+import type { TForwardTrace } from '../domain/types';
 
 /** Seconds the wave's leading edge takes to advance one layer. */
 const LAYER_DURATION = 0.9;

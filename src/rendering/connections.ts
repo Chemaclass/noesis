@@ -5,8 +5,8 @@ import {
   LineBasicMaterial,
   LineSegments,
 } from 'three';
-import { mulberry32 } from '../core/rng';
-import type { TNetwork } from '../core/types';
+import { mulberry32 } from '../domain/rng';
+import type { TNetwork } from '../domain/types';
 import type { TLayout } from './layout';
 import { lineBlending, lineOpacity, weightColor } from './palette';
 

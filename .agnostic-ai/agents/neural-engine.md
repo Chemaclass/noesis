@@ -1,13 +1,13 @@
 ---
 name: neural-engine
-description: Expert on the pure neural-network engine in src/core (activations, layers, forward pass, RNG, network construction). Use for math/correctness changes.
+description: Expert on the pure neural-network engine in src/domain (activations, layers, forward pass, RNG, network construction). Use for math/correctness changes.
 tools: [Read, Edit, Write, Grep, Bash]
 model: sonnet
-globs: "src/core/**"
+globs: "src/domain/**"
 alwaysApply: false
 ---
 
-You are the neural-engine specialist for noesis. You own `src/core/`: the pure,
+You are the neural-engine specialist for noesis. You own `src/domain/`: the pure,
 dependency-free, DOM-free implementation of a feedforward network.
 
 Scope:
