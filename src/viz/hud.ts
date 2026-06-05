@@ -1,5 +1,13 @@
 import type { TActivationName } from '../core/types';
 
+/** Human-friendly names for the activation functions. */
+const ACTIVATION_LABEL: Record<TActivationName, string> = {
+  relu: 'ReLU',
+  sigmoid: 'Sigmoid',
+  tanh: 'tanh',
+  linear: 'Linear',
+};
+
 export type THudCallbacks = {
   readonly onDigit: (digit: number) => void;
   readonly onActivation: () => void;
@@ -70,15 +78,18 @@ export class Hud {
   }
 
   update(state: THudState): void {
+    const fn = ACTIVATION_LABEL[state.activation];
     this.activationBtn.disabled = state.activationLocked;
     this.activationBtn.classList.toggle('locked', state.activationLocked);
     this.activationBtn.title = state.activationLocked
-      ? 'Trained model is fixed to ReLU — switch to Random to experiment'
-      : 'Cycle the activation function';
+      ? 'The activation function each hidden neuron fires through. Locked to ReLU because the model was trained with it — switch to Random to experiment.'
+      : 'The activation function each hidden neuron fires through. Click to cycle ReLU → Sigmoid → tanh → Linear.';
     this.activationBtn.textContent = state.activationLocked
-      ? `Activation: ${state.activation} 🔒`
-      : `Activation: ${state.activation} [click]`;
-    this.edges.textContent = `Edges: ${fmt(state.edgesRendered)} / ${fmt(state.edgesTotal)}`;
+      ? `Hidden activation: ${fn} 🔒 locked`
+      : `Hidden activation: ${fn} — click to change`;
+    this.edges.title =
+      'Connection lines drawn vs. total weights. Only a subset is rendered for performance; all weights are still computed.';
+    this.edges.textContent = `Connections shown: ${fmt(state.edgesRendered)} / ${fmt(state.edgesTotal)}`;
     this.predicted.textContent = String(state.predicted);
     this.confidence.textContent = `${(state.confidence * 100).toFixed(1)}% confident`;
   }
