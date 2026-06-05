@@ -1,5 +1,4 @@
 import './style.css';
-import { nextActivation } from './core/activations';
 import { createNetwork, forward, predict, withHiddenActivation } from './core/network';
 import type { TActivationName, TForwardTrace, TNetwork } from './core/types';
 import { MODEL_ACCURACY, loadTrainedNetwork, sampleDigit } from './data/model';
@@ -97,32 +96,35 @@ function main(): void {
   let edgesRendered = 0;
   let edgesTotal = 0;
 
-  const drawPad = new DrawPad(hudRoot, (input) => runInput(input, true));
+  const drawPad = new DrawPad(document.body, (input) => runInput(input, true));
+
+  function selectTrained(): void {
+    state.mode = 'trained';
+    state.hiddenActivation = 'relu';
+    rebuild(loadTrainedNetwork());
+    runInput(state.input, true);
+  }
+
+  function selectRandom(): void {
+    state.mode = 'random';
+    state.seed = (state.seed * 1664525 + 1013904223) >>> 0;
+    rebuild(randomNetwork(state.seed, state.hiddenActivation));
+    runInput(state.input, true);
+  }
 
   const hud = new Hud(hudRoot, {
     onDigit: (d) => runInput(sampleDigit(d), true),
-    onActivation: () => {
-      if (state.mode === 'trained') return; // trained net is fixed to ReLU
-      state.hiddenActivation = nextActivation(state.hiddenActivation);
-      state.network = withHiddenActivation(state.network, state.hiddenActivation);
-      scene.build(state.network); // weights unchanged, geometry same; recolor
-      runInput(state.input, true);
-    },
+    onDraw: () => drawPad.toggle(),
     onPlay: () => runInput(state.input, true),
     onStep: () => runInput(state.input, false),
-    onTrained: () => {
-      state.mode = 'trained';
-      state.hiddenActivation = 'relu';
-      rebuild(loadTrainedNetwork());
+    onSelectBrain: (brain) => (brain === 'trained' ? selectTrained() : selectRandom()),
+    onReseed: () => selectRandom(),
+    onActivation: (name) => {
+      if (state.mode === 'trained') return; // trained net is fixed to ReLU
+      state.hiddenActivation = name;
+      rebuild(withHiddenActivation(state.network, name));
       runInput(state.input, true);
     },
-    onRandomize: () => {
-      state.mode = 'random';
-      state.seed = (state.seed * 1664525 + 1013904223) >>> 0;
-      rebuild(randomNetwork(state.seed, state.hiddenActivation));
-      runInput(state.input, true);
-    },
-    onDraw: () => drawPad.toggle(),
     onTheme: () => {
       theme = theme === 'dark' ? 'light' : 'dark';
       localStorage.setItem(THEME_KEY, theme);
@@ -176,8 +178,6 @@ function main(): void {
     panel.update(panelState);
 
     const hudState: THudState = {
-      layerLabels: LAYER_LABELS,
-      neuronCounts: sizes,
       activation: state.hiddenActivation,
       activationLocked: state.mode === 'trained',
       mode: state.mode,

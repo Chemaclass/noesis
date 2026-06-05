@@ -8,20 +8,20 @@ const ACTIVATION_LABEL: Record<TActivationName, string> = {
   linear: 'Linear',
 };
 
+const ACTIVATION_ORDER: TActivationName[] = ['relu', 'sigmoid', 'tanh', 'linear'];
+
 export type THudCallbacks = {
   readonly onDigit: (digit: number) => void;
-  readonly onActivation: () => void;
+  readonly onDraw: () => void;
   readonly onPlay: () => void;
   readonly onStep: () => void;
-  readonly onRandomize: () => void;
-  readonly onTrained: () => void;
-  readonly onDraw: () => void;
+  readonly onSelectBrain: (brain: 'trained' | 'random') => void;
+  readonly onReseed: () => void;
+  readonly onActivation: (name: TActivationName) => void;
   readonly onTheme: () => void;
 };
 
 export type THudState = {
-  readonly layerLabels: readonly string[];
-  readonly neuronCounts: readonly number[];
   readonly activation: TActivationName;
   readonly activationLocked: boolean;
   readonly mode: 'trained' | 'random';
@@ -32,92 +32,124 @@ export type THudState = {
   readonly confidence: number;
 };
 
-/** Telemetry + controls overlay. Pure DOM, sits on top of the WebGL canvas. */
+/** Right-docked control panel: prediction, input, run, brain and activation. */
 export class Hud {
-  private readonly activationBtn: HTMLButtonElement;
-  private readonly activationHint: HTMLElement;
-  private readonly edges: HTMLElement;
   private readonly predicted: HTMLElement;
   private readonly confidence: HTMLElement;
   private readonly modeBadge: HTMLElement;
+  private readonly brainSelect: HTMLSelectElement;
+  private readonly reseedBtn: HTMLButtonElement;
+  private readonly actSelect: HTMLSelectElement;
+  private readonly actHint: HTMLElement;
+  private readonly edges: HTMLElement;
 
   constructor(root: HTMLElement, cb: THudCallbacks) {
-    const modeWrap = el('div', 'hud-panel hud-mode');
-    this.modeBadge = el('div', 'hud-mode-badge');
-    modeWrap.appendChild(this.modeBadge);
-    root.appendChild(modeWrap);
+    root.classList.add('controls');
+    root.innerHTML = '';
 
-    const right = el('div', 'hud-panel hud-right');
-    this.activationBtn = document.createElement('button');
-    this.activationBtn.className = 'hud-btn hud-activation';
-    this.activationBtn.addEventListener('click', cb.onActivation);
-    this.activationHint = el('div', 'hud-hint');
-    this.edges = el('div', 'hud-edges');
-    right.append(this.activationBtn, this.activationHint, this.edges);
-    root.appendChild(right);
+    // Header: title + theme toggle
+    const header = el('div', 'ctl-header');
+    header.appendChild(spanEl('ctl-title', 'Controls'));
+    const themeBtn = iconButton('◑', 'Toggle light / dark theme', cb.onTheme);
+    header.appendChild(themeBtn);
+    root.appendChild(header);
 
-    const readout = el('div', 'hud-panel hud-readout');
-    this.predicted = el('div', 'hud-predicted');
-    this.confidence = el('div', 'hud-confidence');
-    readout.append(label('PREDICTION'), this.predicted, this.confidence);
-    root.appendChild(readout);
+    const body = el('div', 'ctl-body');
+    root.appendChild(body);
 
-    root.appendChild(this.buildControls(cb));
-  }
+    // Prediction
+    const pred = section('Prediction');
+    this.predicted = el('div', 'ctl-predicted');
+    this.confidence = el('div', 'ctl-confidence');
+    pred.append(this.predicted, this.confidence);
+    body.appendChild(wrap(pred));
 
-  private buildControls(cb: THudCallbacks): HTMLElement {
-    const bar = el('div', 'hud-controls');
-
-    const digits = el('div', 'hud-digits');
+    // Input
+    const input = section('Input — pick or draw a digit');
+    const digits = el('div', 'ctl-digits');
     for (let d = 0; d < 10; d++) {
       const b = document.createElement('button');
-      b.className = 'hud-btn hud-digit';
+      b.className = 'btn ctl-digit';
       b.textContent = String(d);
       b.addEventListener('click', () => cb.onDigit(d));
       digits.appendChild(b);
     }
-    bar.appendChild(group('Pick a digit', [digits, button('✎ Draw', 'hud-draw', cb.onDraw)]));
-    bar.appendChild(
-      group('Run the network', [
-        button('▶ Play', 'hud-play', cb.onPlay),
-        button('⤓ Step', 'hud-step', cb.onStep),
-      ]),
+    input.append(digits, button('✎ Draw your own', cb.onDraw, 'btn-wide'));
+    body.appendChild(wrap(input));
+
+    // Run
+    const run = section('Run the network');
+    const runRow = el('div', 'ctl-row');
+    runRow.append(button('▶ Play', cb.onPlay), button('⤓ Step', cb.onStep));
+    run.appendChild(runRow);
+    body.appendChild(wrap(run));
+
+    // Brain
+    const brain = section('Brain');
+    this.modeBadge = el('div', 'ctl-badge');
+    this.brainSelect = document.createElement('select');
+    this.brainSelect.className = 'ctl-select';
+    this.brainSelect.append(
+      option('trained', 'Trained model'),
+      option('random', 'Untrained brain'),
     );
-    bar.appendChild(
-      group('Brain', [
-        button('🧠 Trained', 'hud-trained', cb.onTrained),
-        button('⟳ Show untrained brain', 'hud-rand', cb.onRandomize),
-      ]),
+    this.brainSelect.addEventListener('change', () =>
+      cb.onSelectBrain(this.brainSelect.value === 'random' ? 'random' : 'trained'),
     );
-    bar.appendChild(group('View', [button('◑ Theme', 'hud-theme', cb.onTheme)]));
-    return bar;
+    this.reseedBtn = button('⟳ New random weights', cb.onReseed);
+    brain.append(this.modeBadge, this.brainSelect, this.reseedBtn);
+    body.appendChild(wrap(brain));
+
+    // Activation
+    const act = section('Hidden activation');
+    this.actSelect = document.createElement('select');
+    this.actSelect.className = 'ctl-select';
+    for (const name of ACTIVATION_ORDER) this.actSelect.append(option(name, ACTIVATION_LABEL[name]));
+    this.actSelect.addEventListener('change', () =>
+      cb.onActivation(this.actSelect.value as TActivationName),
+    );
+    this.actHint = el('div', 'ctl-hint');
+    act.append(this.actSelect, this.actHint);
+    body.appendChild(wrap(act));
+
+    // Telemetry
+    this.edges = el('div', 'ctl-edges');
+    this.edges.title =
+      'Connection lines drawn vs. total weights. Only a subset is rendered for performance; all weights are still computed.';
+    body.appendChild(this.edges);
   }
 
   update(state: THudState): void {
+    this.predicted.textContent = String(state.predicted);
+    this.confidence.textContent = `${(state.confidence * 100).toFixed(1)}% confident`;
+
     this.modeBadge.classList.toggle('is-random', state.mode === 'random');
     this.modeBadge.textContent =
       state.mode === 'trained'
-        ? `● TRAINED MODEL · ${(state.accuracy * 100).toFixed(1)}% accurate`
-        : '● RANDOM BRAIN · untrained (predictions are noise)';
+        ? `● Trained · ${(state.accuracy * 100).toFixed(1)}% accurate`
+        : '● Untrained · predictions are noise';
+    this.brainSelect.value = state.mode;
+    this.reseedBtn.disabled = state.mode !== 'random';
 
-    const fn = ACTIVATION_LABEL[state.activation];
-    this.activationBtn.disabled = state.activationLocked;
-    this.activationBtn.classList.toggle('locked', state.activationLocked);
-    this.activationBtn.title = state.activationLocked
-      ? 'The activation function each hidden neuron fires through. Locked to ReLU because the model was trained with it — switch to Random to experiment.'
-      : 'The activation function each hidden neuron fires through. Click to cycle ReLU → Sigmoid → tanh → Linear.';
-    this.activationBtn.textContent = state.activationLocked
-      ? `Hidden activation: ${fn} 🔒 locked`
-      : `Hidden activation: ${fn} — click to change`;
-    this.activationHint.textContent = state.activationLocked
-      ? 'fixed to ReLU for the trained model — press “Show untrained brain” to change it'
-      : 'press 🧠 Trained to restore the trained model';
-    this.edges.title =
-      'Connection lines drawn vs. total weights. Only a subset is rendered for performance; all weights are still computed.';
+    this.actSelect.value = state.activation;
+    this.actSelect.disabled = state.activationLocked;
+    this.actHint.textContent = state.activationLocked
+      ? 'Locked: the trained model needs ReLU. Switch the brain to “Untrained” to change it.'
+      : 'How each neuron fires. Try them on the untrained brain.';
+
     this.edges.textContent = `Connections shown: ${fmt(state.edgesRendered)} / ${fmt(state.edgesTotal)}`;
-    this.predicted.textContent = String(state.predicted);
-    this.confidence.textContent = `${(state.confidence * 100).toFixed(1)}% confident`;
   }
+}
+
+function section(title: string): HTMLElement {
+  const s = el('div', 'ctl-section');
+  s.appendChild(spanEl('ctl-section-label', title));
+  return s;
+}
+
+/** Section already builds its own container; this is an identity passthrough. */
+function wrap(node: HTMLElement): HTMLElement {
+  return node;
 }
 
 function el(tag: string, className: string): HTMLElement {
@@ -126,32 +158,30 @@ function el(tag: string, className: string): HTMLElement {
   return node;
 }
 
-function span(className: string, text: string): HTMLElement {
+function spanEl(className: string, text: string): HTMLElement {
   const node = el('span', className);
   node.textContent = text;
   return node;
 }
 
-function label(text: string): HTMLElement {
-  return span('hud-label', text);
+function option(value: string, text: string): HTMLOptionElement {
+  const o = document.createElement('option');
+  o.value = value;
+  o.textContent = text;
+  return o;
 }
 
-/** A labeled cluster of controls. */
-function group(title: string, children: readonly HTMLElement[]): HTMLElement {
-  const g = el('div', 'hud-group');
-  const lbl = el('span', 'hud-group-label');
-  lbl.textContent = title;
-  const row = el('div', 'hud-group-row');
-  row.append(...children);
-  g.append(lbl, row);
-  return g;
-}
-
-function button(text: string, className: string, onClick: () => void): HTMLButtonElement {
+function button(text: string, onClick: () => void, extra = ''): HTMLButtonElement {
   const b = document.createElement('button');
-  b.className = `hud-btn ${className}`;
+  b.className = `btn ${extra}`.trim();
   b.textContent = text;
   b.addEventListener('click', onClick);
+  return b;
+}
+
+function iconButton(text: string, title: string, onClick: () => void): HTMLButtonElement {
+  const b = button(text, onClick, 'btn-icon');
+  b.title = title;
   return b;
 }
 

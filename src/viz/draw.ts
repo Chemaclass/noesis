@@ -153,7 +153,7 @@ export class DrawPad {
 
 function button(label: string, onClick: () => void): HTMLButtonElement {
   const b = document.createElement('button');
-  b.className = 'hud-btn';
+  b.className = 'btn';
   b.textContent = label;
   b.addEventListener('click', onClick);
   return b;
