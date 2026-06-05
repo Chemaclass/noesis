@@ -30,6 +30,10 @@ export type THudState = {
   readonly edgesTotal: number;
   readonly predicted: number;
   readonly confidence: number;
+  /** Softmax probability per class (length 10). */
+  readonly outputs: readonly number[];
+  /** Currently selected preset digit, or null if drawn/custom. */
+  readonly selectedDigit: number | null;
 };
 
 /** Right-docked control panel: prediction, input, run, brain and activation. */
@@ -42,6 +46,8 @@ export class Hud {
   private readonly actSelect: HTMLSelectElement;
   private readonly actHint: HTMLElement;
   private readonly edges: HTMLElement;
+  private readonly digitButtons: HTMLButtonElement[] = [];
+  private readonly bars: { row: HTMLElement; fill: HTMLElement; pct: HTMLElement }[] = [];
 
   constructor(root: HTMLElement, cb: THudCallbacks) {
     root.classList.add('controls');
@@ -59,9 +65,27 @@ export class Hud {
 
     // Prediction
     const pred = section('Prediction');
+    const predRow = el('div', 'ctl-pred-row');
     this.predicted = el('div', 'ctl-predicted');
     this.confidence = el('div', 'ctl-confidence');
-    pred.append(this.predicted, this.confidence);
+    const predText = el('div', 'ctl-pred-text');
+    predText.append(spanEl('ctl-pred-label', 'predicts'), this.predicted);
+    predRow.append(predText, this.confidence);
+    pred.appendChild(predRow);
+
+    // Per-class probability bars
+    const bars = el('div', 'ctl-bars');
+    for (let d = 0; d < 10; d++) {
+      const row = el('div', 'ctl-bar');
+      const track = el('div', 'ctl-bar-track');
+      const fill = el('div', 'ctl-bar-fill');
+      track.appendChild(fill);
+      const pct = el('span', 'ctl-bar-pct');
+      row.append(spanEl('ctl-bar-label', String(d)), track, pct);
+      bars.appendChild(row);
+      this.bars.push({ row, fill, pct });
+    }
+    pred.appendChild(bars);
     body.appendChild(wrap(pred));
 
     // Input
@@ -73,6 +97,7 @@ export class Hud {
       b.textContent = String(d);
       b.addEventListener('click', () => cb.onDigit(d));
       digits.appendChild(b);
+      this.digitButtons.push(b);
     }
     input.append(digits, button('✎ Draw your own', cb.onDraw, 'btn-wide'));
     body.appendChild(wrap(input));
@@ -121,7 +146,22 @@ export class Hud {
 
   update(state: THudState): void {
     this.predicted.textContent = String(state.predicted);
-    this.confidence.textContent = `${(state.confidence * 100).toFixed(1)}% confident`;
+    this.confidence.textContent = `${(state.confidence * 100).toFixed(1)}%`;
+
+    // Per-class probability bars
+    for (let d = 0; d < this.bars.length; d++) {
+      const p = state.outputs[d] ?? 0;
+      const bar = this.bars[d];
+      if (!bar) continue;
+      bar.fill.style.width = `${(p * 100).toFixed(1)}%`;
+      bar.pct.textContent = `${(p * 100).toFixed(0)}%`;
+      bar.row.classList.toggle('is-top', d === state.predicted);
+    }
+
+    // Highlight the selected preset digit
+    for (let d = 0; d < this.digitButtons.length; d++) {
+      this.digitButtons[d]?.classList.toggle('is-active', d === state.selectedDigit);
+    }
 
     this.modeBadge.classList.toggle('is-random', state.mode === 'random');
     this.modeBadge.textContent =

@@ -27,6 +27,7 @@ type TState = {
   seed: number;
   hiddenActivation: TActivationName;
   input: number[];
+  selectedDigit: number | null;
   network: TNetwork;
   trace: TForwardTrace;
 };
@@ -47,13 +48,18 @@ function randomNetwork(seed: number, hidden: TActivationName): TNetwork {
   });
 }
 
-/** Softmax confidence of the winning output neuron. */
-function confidenceOf(trace: TForwardTrace): number {
+/** Softmax probability distribution over the output layer. */
+function softmaxOutputs(trace: TForwardTrace): number[] {
   const out = trace.layers[trace.layers.length - 1]?.a ?? [];
   const max = Math.max(...out, 0);
-  let sum = 0;
-  for (const v of out) sum += Math.exp(v - max);
-  return sum > 0 ? Math.exp((out[predict(trace)] ?? 0) - max) / sum : 0;
+  const exps = out.map((v) => Math.exp(v - max));
+  const sum = exps.reduce((a, b) => a + b, 0);
+  return sum > 0 ? exps.map((e) => e / sum) : exps.map(() => 0);
+}
+
+/** Softmax confidence of the winning output neuron. */
+function confidenceOf(trace: TForwardTrace): number {
+  return softmaxOutputs(trace)[predict(trace)] ?? 0;
 }
 
 /** Min / mean / max of a vector, for the live panel. */
@@ -95,6 +101,7 @@ function main(): void {
     seed: 1,
     hiddenActivation: 'relu',
     input: sampleDigit(3),
+    selectedDigit: 3,
     network: trained,
     trace: forward(trained, sampleDigit(3)),
   };
@@ -102,7 +109,10 @@ function main(): void {
   let edgesRendered = 0;
   let edgesTotal = 0;
 
-  const drawPad = new DrawPad(document.body, (input) => runInput(input, true));
+  const drawPad = new DrawPad(document.body, (input) => {
+    state.selectedDigit = null;
+    runInput(input, true);
+  });
 
   function selectTrained(): void {
     state.mode = 'trained';
@@ -119,7 +129,10 @@ function main(): void {
   }
 
   const hud = new Hud(hudRoot, {
-    onDigit: (d) => runInput(sampleDigit(d), true),
+    onDigit: (d) => {
+      state.selectedDigit = d;
+      runInput(sampleDigit(d), true);
+    },
     onDraw: () => drawPad.toggle(),
     onPlay: () => runInput(state.input, true),
     onStep: () => runInput(state.input, false),
@@ -192,6 +205,8 @@ function main(): void {
       edgesTotal,
       predicted: predict(state.trace),
       confidence: confidenceOf(state.trace),
+      outputs: softmaxOutputs(state.trace),
+      selectedDigit: state.selectedDigit,
     };
     hud.update(hudState);
   }

@@ -9,7 +9,10 @@
   --strong: #eaffff;
   --glow: rgba(43, 214, 255, 0.4);
   --accent-soft: rgba(43, 214, 255, 0.15);
-  font-family: 'Courier New', ui-monospace, monospace;
+  --radius: 10px;
+  font-family:
+    ui-monospace, 'SF Mono', 'JetBrains Mono', 'Fira Code', Menlo, Consolas, monospace;
+  -webkit-font-smoothing: antialiased;
 }
 
 :root[data-theme='light'] {
@@ -103,19 +106,95 @@ body {
   color: var(--dim);
 }
 
+.ctl-pred-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.ctl-pred-text {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.ctl-pred-label {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
 .ctl-predicted {
-  font-size: 56px;
+  font-size: 52px;
   line-height: 1;
-  font-weight: bold;
+  font-weight: 700;
   color: var(--strong);
-  text-align: center;
   text-shadow: 0 0 24px var(--glow);
 }
 
 .ctl-confidence {
-  text-align: center;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--cyan);
+}
+
+/* per-class probability bars */
+.ctl-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.ctl-bar {
+  display: grid;
+  grid-template-columns: 12px 1fr 34px;
+  align-items: center;
+  gap: 8px;
+  opacity: 0.55;
+  transition: opacity 0.2s;
+}
+
+.ctl-bar.is-top {
+  opacity: 1;
+}
+
+.ctl-bar-label {
   font-size: 11px;
   color: var(--dim);
+  text-align: center;
+}
+
+.ctl-bar.is-top .ctl-bar-label {
+  color: var(--strong);
+  font-weight: 700;
+}
+
+.ctl-bar-track {
+  height: 6px;
+  background: var(--accent-soft);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.ctl-bar-fill {
+  height: 100%;
+  width: 0;
+  background: var(--dim);
+  border-radius: 3px;
+  transition: width 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.ctl-bar.is-top .ctl-bar-fill {
+  background: var(--cyan);
+  box-shadow: 0 0 8px var(--glow);
+}
+
+.ctl-bar-pct {
+  font-size: 10px;
+  color: var(--dim);
+  text-align: right;
 }
 
 .ctl-digits {
@@ -182,11 +261,37 @@ body {
   box-shadow: 0 0 12px var(--glow);
 }
 
+.btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
 .btn:disabled {
   color: var(--dim);
   border-color: rgba(120, 140, 160, 0.25);
   cursor: not-allowed;
   opacity: 0.55;
+}
+
+.ctl-digit.is-active {
+  color: #04101f;
+  background: var(--cyan);
+  border-color: var(--cyan);
+  font-weight: 700;
+}
+
+/* accessible focus rings */
+.btn:focus-visible,
+.ctl-select:focus-visible,
+.panel-toggle:focus-visible,
+.section-head:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
 }
 
 .btn-wide {

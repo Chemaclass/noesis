@@ -71,7 +71,8 @@ export class Scene {
     this.controls.enableDamping = true;
     this.controls.enablePan = false;
     // Start framed on the digit face, then slowly orbit to reveal the network.
-    this.controls.autoRotate = true;
+    // Respect users who prefer reduced motion.
+    this.controls.autoRotate = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     this.controls.autoRotateSpeed = 0.5;
 
     const renderPass = new RenderPass(this.scene, this.camera);
