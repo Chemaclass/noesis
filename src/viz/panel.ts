@@ -34,10 +34,12 @@ export class Panel {
 
     const header = document.createElement('div');
     header.className = 'panel-title';
-    header.innerHTML = `<span class="panel-logo">noesis</span><button class="panel-toggle" title="Collapse">⟨⟩</button>`;
-    header
-      .querySelector('.panel-toggle')
-      ?.addEventListener('click', () => root.classList.toggle('panel--collapsed'));
+    header.innerHTML = `<span class="panel-logo">noesis<small>neural brain</small></span><button class="panel-toggle" title="Collapse panel" aria-label="Toggle panel">‹</button>`;
+    const toggle = header.querySelector<HTMLButtonElement>('.panel-toggle');
+    toggle?.addEventListener('click', () => {
+      const collapsed = root.classList.toggle('panel--collapsed');
+      toggle.textContent = collapsed ? '›' : '‹';
+    });
     root.appendChild(header);
 
     const body = document.createElement('div');

@@ -12,7 +12,7 @@ import type { TLayout } from './layout';
 import { WEIGHT_NEGATIVE, WEIGHT_POSITIVE } from './palette';
 
 /** Hard cap on rendered edges per layer-pair, so dense layers stay at 60fps. */
-const MAX_EDGES_PER_PAIR = 6000;
+const MAX_EDGES_PER_PAIR = 4000;
 
 export type TConnectionStats = {
   /** Edges actually drawn. */
@@ -65,7 +65,8 @@ export class Connections {
           if (!from) continue;
           const w = row[i] ?? 0;
           const mag = Math.min(1, Math.abs(w) / maxAbs);
-          edgeColor.copy(w >= 0 ? WEIGHT_POSITIVE : WEIGHT_NEGATIVE).multiplyScalar(mag * 0.5);
+          // gamma-curve the magnitude so only strong weights are bright
+          edgeColor.copy(w >= 0 ? WEIGHT_POSITIVE : WEIGHT_NEGATIVE).multiplyScalar(mag * mag * 0.42);
 
           verts.push(from[0], from[1], from[2], to[0], to[1], to[2]);
           colors.push(
@@ -83,7 +84,7 @@ export class Connections {
     const material = new LineBasicMaterial({
       vertexColors: true,
       transparent: true,
-      opacity: 0.6,
+      opacity: 0.38,
       blending: AdditiveBlending,
       depthWrite: false,
       toneMapped: false,
