@@ -1,7 +1,15 @@
 import type { TForwardTrace } from '../core/types';
 
-/** Seconds for the activation wave to sweep through one layer. */
-const LAYER_DURATION = 0.45;
+/** Seconds the wave's leading edge takes to advance one layer. */
+const LAYER_DURATION = 0.9;
+/** How many layers the ramp spans, so adjacent layers fade in overlapping. */
+const RAMP = 1.6;
+
+/** Smoothstep easing for soft fade-in/out. */
+function smoothstep(t: number): number {
+  const x = t < 0 ? 0 : t > 1 ? 1 : t;
+  return x * x * (3 - 2 * x);
+}
 
 /**
  * Drives the "signal travels through the brain" animation. Given a forward
@@ -18,6 +26,10 @@ export class SignalAnimator {
     this.layerCount = layerCount + 1;
   }
 
+  private get endTime(): number {
+    return (this.layerCount - 1 + RAMP) * LAYER_DURATION;
+  }
+
   /** (Re)start the wave from the input layer. */
   play(): void {
     this.elapsed = 0;
@@ -26,7 +38,7 @@ export class SignalAnimator {
 
   /** Snap to fully revealed (used by Step / when paused). */
   complete(): void {
-    this.elapsed = this.layerCount * LAYER_DURATION;
+    this.elapsed = this.endTime;
     this.playing = false;
   }
 
@@ -34,23 +46,23 @@ export class SignalAnimator {
     return this.playing;
   }
 
-  /** Advance the clock; returns true while still animating. */
+  /** Advance the clock; returns true on every frame it still drives a change. */
   update(dt: number): boolean {
     if (!this.playing) return false;
     this.elapsed += dt;
-    if (this.elapsed >= this.layerCount * LAYER_DURATION) {
+    if (this.elapsed >= this.endTime) {
+      this.elapsed = this.endTime;
       this.playing = false;
     }
-    return this.playing;
+    return true; // apply this frame too, so it lands on a full reveal
   }
 
-  /** Reveal factor per layer (input first), each in [0,1]. */
+  /** Reveal factor per layer (input first), each eased in [0,1]. */
   reveal(): number[] {
     const front = this.elapsed / LAYER_DURATION;
     const out = new Array<number>(this.layerCount);
     for (let l = 0; l < this.layerCount; l++) {
-      const v = front - l;
-      out[l] = v <= 0 ? 0 : v >= 1 ? 1 : v;
+      out[l] = smoothstep((front - l) / RAMP);
     }
     return out;
   }
