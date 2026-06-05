@@ -1,0 +1,150 @@
+:root {
+  --cyan: #2bd6ff;
+  --dim: #5e7d9a;
+  --bg-panel: rgba(4, 12, 26, 0.55);
+  --border: rgba(43, 214, 255, 0.25);
+  font-family: 'Courier New', ui-monospace, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #02040a;
+  color: var(--cyan);
+}
+
+#scene {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  display: block;
+}
+
+#hud {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  text-shadow: 0 0 8px rgba(43, 214, 255, 0.4);
+}
+
+.hud-panel {
+  position: absolute;
+  padding: 12px 14px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  backdrop-filter: blur(3px);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+
+.hud-layers {
+  top: 16px;
+  left: 16px;
+}
+
+.hud-layer-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 2px 0;
+}
+
+.hud-layer-name {
+  color: var(--cyan);
+}
+
+.hud-layer-count {
+  color: var(--dim);
+}
+
+.hud-right {
+  top: 16px;
+  right: 16px;
+  text-align: right;
+}
+
+.hud-edges {
+  color: var(--dim);
+  margin-top: 8px;
+}
+
+.hud-readout {
+  bottom: 90px;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  min-width: 160px;
+}
+
+.hud-label {
+  display: block;
+  font-size: 10px;
+  color: var(--dim);
+  letter-spacing: 0.3em;
+}
+
+.hud-predicted {
+  font-size: 64px;
+  line-height: 1;
+  color: #eaffff;
+  text-shadow: 0 0 24px rgba(43, 214, 255, 0.8);
+}
+
+.hud-confidence {
+  font-size: 11px;
+  color: var(--dim);
+}
+
+.hud-controls {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  pointer-events: auto;
+}
+
+.hud-digits {
+  display: flex;
+  gap: 4px;
+  margin-right: 8px;
+}
+
+.hud-btn {
+  pointer-events: auto;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--cyan);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 6px 10px;
+  transition:
+    background 0.15s,
+    box-shadow 0.15s;
+}
+
+.hud-btn:hover {
+  background: rgba(43, 214, 255, 0.15);
+  box-shadow: 0 0 12px rgba(43, 214, 255, 0.4);
+}
+
+.hud-digit {
+  width: 30px;
+  padding: 6px 0;
+}
+
+.hud-activation {
+  pointer-events: auto;
+}
