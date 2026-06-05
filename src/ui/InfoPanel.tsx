@@ -77,6 +77,33 @@ export function InfoPanel({ layers, activation, accuracy }: Props): JSX.Element 
           <span className="panel-accuracy">{`Trained model · ${(accuracy * 100).toFixed(1)}% test accuracy`}</span>
         </Section>
 
+        <Section title="How learning works (+ LLMs)">
+          <p>
+            Pick <b>Watch it learn</b> in the Brain menu to train a small net live, from random.
+          </p>
+          <ol>
+            <li>
+              <b>Forward pass</b> — run an example through, get a guess.
+            </li>
+            <li>
+              <b>Loss</b> — measure how wrong the guess is (cross-entropy).
+            </li>
+            <li>
+              <b>Backprop</b> — compute which way every weight should move to be less wrong.
+            </li>
+            <li>
+              <b>Step</b> — nudge all weights downhill (gradient descent). Repeat.
+            </li>
+          </ol>
+          <p>
+            That four-step loop is <i>all</i> of training — for digits here, and for a large
+            language model. An <b>LLM</b> is the same primitives (weighted sums, activations, this
+            loop) scaled up massively and predicting the next <i>token</i> instead of a digit, over
+            much of the internet. Our demo learns from only 10 images, so it memorises rather than
+            generalises — that gap is exactly why scale and data matter.
+          </p>
+        </Section>
+
         <Section title="Live layer details" defaultOpen>
           {layers.map((l) => (
             <div className="live-row" key={l.label}>

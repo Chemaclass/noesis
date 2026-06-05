@@ -20,6 +20,7 @@ export function SceneCanvas({ network, trace, animate, nonce, theme, onEdges }: 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<Scene | null>(null);
   const prevNetwork = useRef<TNetwork | null>(null);
+  const prevSizes = useRef<string>('');
 
   useEffect(() => {
     if (!canvasRef.current || sceneRef.current) return; // guard React StrictMode double-mount
@@ -36,7 +37,12 @@ export function SceneCanvas({ network, trace, animate, nonce, theme, onEdges }: 
     const scene = sceneRef.current;
     if (!scene) return;
     if (prevNetwork.current !== network) {
-      const result = scene.build(network);
+      // Only reframe the camera when the architecture changes (new mode). During
+      // live training the weights change every tick but the shape is constant —
+      // reframing then would fight the user's orbit.
+      const sizes = [network.inputSize, ...network.layers.map((l) => l.size)].join('×');
+      const result = scene.build(network, sizes !== prevSizes.current);
+      prevSizes.current = sizes;
       prevNetwork.current = network;
       onEdges(result.edges.rendered, result.edges.total);
     }

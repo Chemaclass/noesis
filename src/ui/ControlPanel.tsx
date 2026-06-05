@@ -1,6 +1,7 @@
 import type { TActivationName } from '../domain/types';
-import type { TNoesis } from '../app/useNoesis';
+import type { TMode, TNoesis } from '../app/useNoesis';
 import { PredictionBars } from './PredictionBars';
+import { Sparkline } from './Sparkline';
 
 const ACTIVATION_LABEL: Record<TActivationName, string> = {
   relu: 'ReLU',
@@ -17,8 +18,12 @@ type Props = {
 
 /** Right-docked control panel: prediction, input, run, brain and activation. */
 export function ControlPanel({ noesis, onOpenDraw }: Props): JSX.Element {
-  const { session, derived, edges } = noesis;
+  const { session, derived, edges, training } = noesis;
   const fmt = (n: number): string => n.toLocaleString('en-US');
+  const onBrainChange = (value: string): void => {
+    if (value === 'training') noesis.startTraining();
+    else noesis.setBrain(value as TMode);
+  };
 
   return (
     <aside id="hud" className="controls">
@@ -74,23 +79,62 @@ export function ControlPanel({ noesis, onOpenDraw }: Props): JSX.Element {
 
         <section className="ctl-section">
           <span className="ctl-section-label">Brain</span>
-          <div className={`ctl-badge${session.mode === 'random' ? ' is-random' : ''}`}>
-            {session.mode === 'trained'
-              ? `● Trained · ${(derived.accuracy * 100).toFixed(1)}% accurate`
-              : '● Untrained · predictions are noise'}
+          <div
+            className={`ctl-badge${session.mode === 'random' ? ' is-random' : ''}${session.mode === 'training' ? ' is-training' : ''}`}
+          >
+            {session.mode === 'trained' &&
+              `● Trained · ${(derived.accuracy * 100).toFixed(1)}% accurate`}
+            {session.mode === 'random' && '● Untrained · predictions are noise'}
+            {session.mode === 'training' &&
+              `● Learning · step ${training.step} · ${(training.accuracy * 100).toFixed(0)}% of 10`}
           </div>
           <select
             className="ctl-select"
             value={session.mode}
-            onChange={(e) => noesis.setBrain(e.target.value === 'random' ? 'random' : 'trained')}
+            onChange={(e) => onBrainChange(e.target.value)}
           >
             <option value="trained">Trained model</option>
+            <option value="training">Watch it learn ▶</option>
             <option value="random">Untrained brain</option>
           </select>
-          <button className="btn" onClick={noesis.reseed} disabled={session.mode !== 'random'}>
-            ⟳ New random weights
-          </button>
+          {session.mode === 'random' && (
+            <button className="btn" onClick={noesis.reseed}>
+              ⟳ New random weights
+            </button>
+          )}
         </section>
+
+        {session.mode === 'training' && (
+          <section className="ctl-section">
+            <span className="ctl-section-label">Training — gradient descent</span>
+            <Sparkline values={training.loss} label="loss" />
+            <div className="ctl-row">
+              <button className="btn" onClick={noesis.toggleTraining}>
+                {training.running ? '❚❚ Pause' : '▶ Resume'}
+              </button>
+              <button className="btn" onClick={noesis.resetTraining}>
+                ⟳ Restart
+              </button>
+            </div>
+            <label className="ctl-slider">
+              <span>{`learning rate · ${training.learningRate.toFixed(2)}`}</span>
+              <input
+                type="range"
+                min={0.02}
+                max={1}
+                step={0.02}
+                value={training.learningRate}
+                onChange={(e) => noesis.setLearningRate(Number(e.target.value))}
+              />
+            </label>
+            <div className="ctl-hint">
+              It learns from just 10 example digits — watch the loss fall as the weights
+              organise. Then <b>draw your own</b>: it often misses, because 10 examples isn’t
+              enough to generalise. Real models train on millions (an LLM, on much of the
+              internet).
+            </div>
+          </section>
+        )}
 
         <section className="ctl-section">
           <span className="ctl-section-label">Hidden activation</span>

@@ -86,10 +86,14 @@ export class Scene {
     window.addEventListener('resize', () => this.resize());
   }
 
-  /** Tear down the old view (if any) and build geometry for `network`. */
-  build(network: TNetwork): TBuildResult {
+  /**
+   * Tear down the old view (if any) and build geometry for `network`. Reframes
+   * the camera by default; pass `frame = false` for live weight updates (e.g.
+   * training ticks) so the user's orbit isn't yanked back every frame.
+   */
+  build(network: TNetwork, frame = true): TBuildResult {
     const result = this.rebuildView(network);
-    this.frameCamera();
+    if (frame) this.frameCamera();
     return result;
   }
 
