@@ -404,6 +404,7 @@ body {
 }
 
 #panel.panel--collapsed .panel-body,
+#panel.panel--collapsed .panel-footer,
 #panel.panel--collapsed .panel-logo {
   display: none;
 }
@@ -458,6 +459,36 @@ body {
 .panel-body::-webkit-scrollbar-thumb {
   background: rgba(43, 214, 255, 0.25);
   border-radius: 3px;
+}
+
+.panel-footer {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-top: 1px solid rgba(43, 214, 255, 0.12);
+  font-size: 11px;
+}
+
+.footer-link {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--dim);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.footer-link:hover {
+  color: var(--cyan);
+}
+
+.footer-sep {
+  color: var(--dim);
+  opacity: 0.5;
 }
 
 .panel-section {
