@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ACTIVATIONS, activate, nextActivation } from './activations';
+import { ACTIVATIONS, activate, activationDerivative, nextActivation } from './activations';
 
 describe('activations', () => {
   it('sigmoid(0) === 0.5', () => {
@@ -19,5 +19,13 @@ describe('activations', () => {
   it('nextActivation cycles and wraps', () => {
     expect(nextActivation('sigmoid')).toBe('relu');
     expect(nextActivation('linear')).toBe('sigmoid');
+  });
+
+  it('derivatives: relu step, sigmoid peak at 0, linear constant', () => {
+    expect(activationDerivative('relu', 2)).toBe(1);
+    expect(activationDerivative('relu', -2)).toBe(0);
+    expect(activationDerivative('sigmoid', 0)).toBeCloseTo(0.25, 10);
+    expect(activationDerivative('tanh', 0)).toBe(1);
+    expect(activationDerivative('linear', 999)).toBe(1);
   });
 });
