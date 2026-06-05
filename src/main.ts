@@ -1,31 +1,34 @@
 import './style.css';
 import { nextActivation } from './core/activations';
-import { createNetwork, forward, predict } from './core/network';
+import { createNetwork, forward, predict, withHiddenActivation } from './core/network';
 import type { TActivationName, TForwardTrace, TNetwork } from './core/types';
-import { rasterizeDigit } from './data/digits';
+import { MODEL_ACCURACY, loadTrainedNetwork, sampleDigit } from './data/model';
+import { DrawPad } from './viz/draw';
 import { Hud, type THudState } from './viz/hud';
+import { Panel, type TPanelLayer, type TPanelState } from './viz/panel';
 import { Scene } from './viz/scene';
 
 const INPUT_SIZE = 784; // 28x28
 const LAYER_LABELS = ['Input 28×28', 'Hidden #1', 'Hidden #2', 'Output 0–9'] as const;
 
-/** Mutable app state — small enough to keep as a plain object. */
+/** Mutable app state. */
 type TState = {
+  mode: 'trained' | 'random';
   seed: number;
   hiddenActivation: TActivationName;
-  digit: number;
+  input: number[];
   network: TNetwork;
   trace: TForwardTrace;
 };
 
-function buildNetwork(seed: number, hidden: TActivationName): TNetwork {
+function randomNetwork(seed: number, hidden: TActivationName): TNetwork {
   return createNetwork({
     inputSize: INPUT_SIZE,
     seed,
     layers: [
       { size: 48, activation: hidden },
       { size: 24, activation: hidden },
-      { size: 10, activation: 'sigmoid' },
+      { size: 10, activation: 'linear' },
     ],
   });
 }
@@ -39,60 +42,116 @@ function confidenceOf(trace: TForwardTrace): number {
   return sum > 0 ? Math.exp((out[predict(trace)] ?? 0) - max) / sum : 0;
 }
 
+/** Min / mean / max of a vector, for the live panel. */
+function stats(values: readonly number[]): { min: number; max: number; mean: number } {
+  if (values.length === 0) return { min: 0, max: 0, mean: 0 };
+  let min = Infinity;
+  let max = -Infinity;
+  let sum = 0;
+  for (const v of values) {
+    if (v < min) min = v;
+    if (v > max) max = v;
+    sum += v;
+  }
+  return { min, max, mean: sum / values.length };
+}
+
 function main(): void {
   const canvas = document.querySelector<HTMLCanvasElement>('#scene');
   const hudRoot = document.querySelector<HTMLElement>('#hud');
-  if (!canvas || !hudRoot) throw new Error('missing #scene or #hud in the DOM');
+  const panelRoot = document.querySelector<HTMLElement>('#panel');
+  if (!canvas || !hudRoot || !panelRoot) throw new Error('missing #scene / #hud / #panel');
 
   const scene = new Scene(canvas);
+  const panel = new Panel(panelRoot);
 
-  const network = buildNetwork(1, 'relu');
+  const trained = loadTrainedNetwork();
   const state: TState = {
+    mode: 'trained',
     seed: 1,
     hiddenActivation: 'relu',
-    digit: 3,
-    network,
-    trace: forward(network, rasterizeDigit(3)),
+    input: sampleDigit(3),
+    network: trained,
+    trace: forward(trained, sampleDigit(3)),
   };
 
   let edgesRendered = 0;
   let edgesTotal = 0;
 
+  const drawPad = new DrawPad(hudRoot, (input) => runInput(input, true));
+
   const hud = new Hud(hudRoot, {
-    onDigit: (d) => runDigit(d, true),
+    onDigit: (d) => runInput(sampleDigit(d), true),
     onActivation: () => {
       state.hiddenActivation = nextActivation(state.hiddenActivation);
-      rebuild();
-      runDigit(state.digit, true);
+      state.network = withHiddenActivation(state.network, state.hiddenActivation);
+      scene.build(state.network); // weights unchanged, geometry same; recolor
+      runInput(state.input, true);
     },
-    onPlay: () => runDigit(state.digit, true),
-    onStep: () => runDigit(state.digit, false),
+    onPlay: () => runInput(state.input, true),
+    onStep: () => runInput(state.input, false),
+    onTrained: () => {
+      state.mode = 'trained';
+      state.hiddenActivation = 'relu';
+      rebuild(loadTrainedNetwork());
+      runInput(state.input, true);
+    },
     onRandomize: () => {
+      state.mode = 'random';
       state.seed = (state.seed * 1664525 + 1013904223) >>> 0;
-      rebuild();
-      runDigit(state.digit, true);
+      rebuild(randomNetwork(state.seed, state.hiddenActivation));
+      runInput(state.input, true);
     },
+    onDraw: () => drawPad.toggle(),
   });
 
-  function rebuild(): void {
-    state.network = buildNetwork(state.seed, state.hiddenActivation);
-    const result = scene.build(state.network);
+  function rebuild(network: TNetwork): void {
+    state.network = network;
+    const result = scene.build(network);
     edgesRendered = result.edges.rendered;
     edgesTotal = result.edges.total;
   }
 
-  function runDigit(digit: number, animate: boolean): void {
-    state.digit = digit;
-    state.trace = forward(state.network, rasterizeDigit(digit));
+  function runInput(input: number[], animate: boolean): void {
+    state.input = input;
+    state.trace = forward(state.network, input);
     if (animate) scene.play(state.trace);
     else scene.show(state.trace);
     refreshHud();
   }
 
   function refreshHud(): void {
+    const sizes = [state.network.inputSize, ...state.network.layers.map((l) => l.size)];
+    const acts: readonly (readonly number[])[] = [
+      state.trace.input,
+      ...state.trace.layers.map((l) => l.a),
+    ];
+    const activations = ['input', ...state.network.layers.map((l) => l.activation)];
+
+    const panelLayers: TPanelLayer[] = LAYER_LABELS.map((label, i) => {
+      const s = stats(acts[i] ?? []);
+      return {
+        label,
+        count: sizes[i] ?? 0,
+        activation: activations[i] ?? '—',
+        min: s.min,
+        max: s.max,
+        mean: s.mean,
+      };
+    });
+
+    const panelState: TPanelState = {
+      layers: panelLayers,
+      activation: state.hiddenActivation,
+      accuracy: MODEL_ACCURACY,
+      prediction: predict(state.trace),
+      confidence: confidenceOf(state.trace),
+    };
+    panel.update(panelState);
+
     const hudState: THudState = {
       layerLabels: LAYER_LABELS,
-      neuronCounts: [state.network.inputSize, ...state.network.layers.map((l) => l.size)],
+      neuronCounts: sizes,
       activation: state.hiddenActivation,
       edgesRendered,
       edgesTotal,
@@ -102,9 +161,9 @@ function main(): void {
     hud.update(hudState);
   }
 
-  rebuild();
+  rebuild(state.network);
   scene.start();
-  runDigit(state.digit, true);
+  runInput(state.input, true);
 }
 
 main();

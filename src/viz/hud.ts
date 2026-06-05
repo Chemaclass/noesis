@@ -6,6 +6,8 @@ export type THudCallbacks = {
   readonly onPlay: () => void;
   readonly onStep: () => void;
   readonly onRandomize: () => void;
+  readonly onTrained: () => void;
+  readonly onDraw: () => void;
 };
 
 export type THudState = {
@@ -20,18 +22,12 @@ export type THudState = {
 
 /** Telemetry + controls overlay. Pure DOM, sits on top of the WebGL canvas. */
 export class Hud {
-  private readonly layers: HTMLElement;
   private readonly activationBtn: HTMLButtonElement;
   private readonly edges: HTMLElement;
   private readonly predicted: HTMLElement;
   private readonly confidence: HTMLElement;
 
   constructor(root: HTMLElement, cb: THudCallbacks) {
-    root.innerHTML = '';
-
-    this.layers = el('div', 'hud-panel hud-layers');
-    root.appendChild(this.layers);
-
     const right = el('div', 'hud-panel hud-right');
     this.activationBtn = document.createElement('button');
     this.activationBtn.className = 'hud-btn hud-activation';
@@ -62,23 +58,15 @@ export class Hud {
     }
     bar.appendChild(digits);
 
+    bar.appendChild(button('✎ Draw', 'hud-draw', cb.onDraw));
     bar.appendChild(button('▶ Play', 'hud-play', cb.onPlay));
     bar.appendChild(button('⤓ Step', 'hud-step', cb.onStep));
-    bar.appendChild(button('⟳ Randomize', 'hud-rand', cb.onRandomize));
+    bar.appendChild(button('🧠 Trained', 'hud-trained', cb.onTrained));
+    bar.appendChild(button('⟳ Random', 'hud-rand', cb.onRandomize));
     return bar;
   }
 
   update(state: THudState): void {
-    this.layers.innerHTML = '';
-    state.layerLabels.forEach((labelText, i) => {
-      const row = el('div', 'hud-layer-row');
-      row.append(
-        span('hud-layer-name', labelText),
-        span('hud-layer-count', `${state.neuronCounts[i] ?? 0} neurons`),
-      );
-      this.layers.appendChild(row);
-    });
-
     this.activationBtn.textContent = `Activation: ${state.activation} [click]`;
     this.edges.textContent = `Edges: ${fmt(state.edgesRendered)} / ${fmt(state.edgesTotal)}`;
     this.predicted.textContent = String(state.predicted);

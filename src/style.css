@@ -148,3 +148,236 @@ body {
 .hud-activation {
   pointer-events: auto;
 }
+
+/* ---------- left info panel ---------- */
+#panel {
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  bottom: 16px;
+  width: 320px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  backdrop-filter: blur(4px);
+  font-size: 12px;
+  line-height: 1.5;
+  overflow: hidden;
+  transition: width 0.2s ease;
+}
+
+#panel.panel--collapsed {
+  width: 44px;
+}
+
+#panel.panel--collapsed .panel-body,
+#panel.panel--collapsed .panel-logo {
+  display: none;
+}
+
+.panel-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  flex: 0 0 auto;
+}
+
+.panel-logo {
+  font-size: 18px;
+  letter-spacing: 0.2em;
+  color: #eaffff;
+  text-shadow: 0 0 12px rgba(43, 214, 255, 0.6);
+}
+
+.panel-toggle {
+  pointer-events: auto;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--cyan);
+  border-radius: 4px;
+  font-family: inherit;
+  padding: 2px 6px;
+}
+
+.panel-body {
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+.panel-body::-webkit-scrollbar {
+  width: 6px;
+}
+.panel-body::-webkit-scrollbar-thumb {
+  background: rgba(43, 214, 255, 0.25);
+  border-radius: 3px;
+}
+
+.panel-section {
+  border-bottom: 1px solid rgba(43, 214, 255, 0.12);
+}
+
+.section-head {
+  pointer-events: auto;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: var(--cyan);
+  font-family: inherit;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 9px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.caret {
+  transition: transform 0.15s;
+}
+
+.panel-section.collapsed .caret {
+  transform: rotate(-90deg);
+}
+
+.panel-section.collapsed .section-body {
+  display: none;
+}
+
+.section-body {
+  padding: 0 12px 12px;
+  color: #b9d4e6;
+}
+
+.section-body p {
+  margin: 6px 0;
+}
+
+.section-body ol {
+  margin: 6px 0;
+  padding-left: 18px;
+}
+
+.section-body li {
+  margin: 4px 0;
+}
+
+.section-body b {
+  color: var(--cyan);
+}
+
+.section-body pre {
+  background: rgba(43, 214, 255, 0.08);
+  border-left: 2px solid var(--border);
+  padding: 8px 10px;
+  margin: 6px 0;
+  color: #eaffff;
+  white-space: pre-wrap;
+}
+
+.panel-accuracy {
+  display: block;
+  margin-top: 8px;
+  color: var(--cyan);
+  font-weight: bold;
+}
+
+.math-act {
+  color: #eaffff;
+  font-weight: bold;
+}
+
+.live-row {
+  padding: 5px 0;
+  border-bottom: 1px dashed rgba(43, 214, 255, 0.1);
+}
+
+.live-head {
+  display: flex;
+  justify-content: space-between;
+}
+
+.live-head span {
+  color: var(--dim);
+}
+
+.live-stats {
+  color: var(--dim);
+  font-size: 11px;
+}
+
+.legend-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 0;
+}
+
+.sw {
+  display: inline-block;
+  width: 14px;
+  height: 8px;
+  border-radius: 2px;
+}
+.sw-pos {
+  background: #2bd6ff;
+}
+.sw-neg {
+  background: #ff3d7f;
+}
+.sw-cold {
+  background: #05143a;
+}
+.sw-hot {
+  background: #eaffff;
+}
+
+/* ---------- draw pad ---------- */
+.drawpad {
+  position: fixed;
+  right: 16px;
+  bottom: 120px;
+  z-index: 6;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px;
+  backdrop-filter: blur(4px);
+  pointer-events: auto;
+}
+
+.drawpad.hidden {
+  display: none;
+}
+
+.drawpad-title {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--cyan);
+  margin-bottom: 8px;
+}
+
+.drawpad-canvas {
+  width: 220px;
+  height: 220px;
+  background: #000;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.drawpad-controls {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+}
