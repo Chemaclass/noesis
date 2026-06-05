@@ -7,6 +7,8 @@ can watch think. Pick a digit, and a signal sweeps layer by layer through a
 glowing field of neurons and weighted connections — cyberpunk on the outside,
 honest little neural net on the inside.
 
+**▶ Live demo: <https://chemaclass.github.io/noesis/>**
+
 ![status](https://img.shields.io/badge/status-learning--toy-blue)
 
 ## What it does
