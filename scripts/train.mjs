@@ -21,18 +21,20 @@ const FILES = {
   testLabels: 't10k-labels-idx1-ubyte.gz',
 };
 
-const ARCH = [784, 64, 32, 10];
+const ARCH = [784, 128, 64, 10];
 const ACTIVATIONS = ['relu', 'relu', 'linear'];
 const DIM = 28;
 
 // hyperparameters
-const EPOCHS = 18;
+const EPOCHS = 24;
 const BATCH = 64;
-const LR = 0.001;
+const LR = 0.0012;
 const WD = 1e-4; // decoupled weight decay (AdamW)
 const B1 = 0.9;
 const B2 = 0.999;
 const EPS = 1e-8;
+const DROPOUT = 0.15; // on hidden layers, training only
+const LABEL_SMOOTH = 0.05;
 // augmentation ranges
 const AUG_ROT = 0.18; // rad (~10°)
 const AUG_SCALE = 0.12;
@@ -153,14 +155,57 @@ function softmax(logits) {
   return out;
 }
 
+// forward pass with inverted dropout on hidden layers (training only)
+function forwardTrain(model, x, rnd) {
+  const acts = [x];
+  const pre = [null];
+  const dm = [null]; // dropout scale mask per activation index
+  const scale = 1 / (1 - DROPOUT);
+  let cur = x;
+  for (let l = 0; l < model.W.length; l++) {
+    const inSize = ARCH[l];
+    const outSize = ARCH[l + 1];
+    const w = model.W[l];
+    const b = model.B[l];
+    const z = new Float32Array(outSize);
+    for (let j = 0; j < outSize; j++) {
+      let s = b[j];
+      const base = j * inSize;
+      for (let i = 0; i < inSize; i++) s += w[base + i] * cur[i];
+      z[j] = s;
+    }
+    pre.push(z);
+    const last = l === model.W.length - 1;
+    const a = new Float32Array(outSize);
+    let mask = null;
+    if (last) {
+      for (let j = 0; j < outSize; j++) a[j] = z[j];
+    } else {
+      mask = new Float32Array(outSize);
+      for (let j = 0; j < outSize; j++) {
+        const keep = rnd() >= DROPOUT ? scale : 0;
+        mask[j] = keep;
+        a[j] = relu(z[j]) * keep;
+      }
+    }
+    dm.push(mask);
+    acts.push(a);
+    cur = a;
+  }
+  return { acts, pre, dm };
+}
+
 // accumulate gradients for one sample into gW/gB; returns loss
-function accumulate(model, gW, gB, x, label) {
-  const { acts, pre } = forward(model, x);
+function accumulate(model, gW, gB, x, label, rnd) {
+  const { acts, pre, dm } = forwardTrain(model, x, rnd);
   const probs = softmax(acts[acts.length - 1]);
   const loss = -Math.log(Math.max(probs[label], 1e-12));
 
+  // label smoothing: spread a little target mass across all classes
+  const lo = LABEL_SMOOTH / probs.length;
+  const hi = 1 - LABEL_SMOOTH + lo;
   let delta = new Float32Array(probs.length);
-  for (let j = 0; j < probs.length; j++) delta[j] = probs[j] - (j === label ? 1 : 0);
+  for (let j = 0; j < probs.length; j++) delta[j] = probs[j] - (j === label ? hi : lo);
 
   for (let l = model.W.length - 1; l >= 0; l--) {
     const inSize = ARCH[l];
@@ -181,7 +226,10 @@ function accumulate(model, gW, gB, x, label) {
     }
     if (nextDelta) {
       const zIn = pre[l];
-      for (let i = 0; i < inSize; i++) nextDelta[i] *= zIn[i] > 0 ? 1 : 0;
+      const mask = dm[l]; // dropout scale on acts[l]
+      for (let i = 0; i < inSize; i++) {
+        nextDelta[i] *= zIn[i] > 0 ? (mask ? mask[i] : 1) : 0;
+      }
       delta = nextDelta;
     }
   }
@@ -288,7 +336,7 @@ async function run() {
       const n = order[k];
       const raw = trainImages.data.subarray(n * trainImages.px, (n + 1) * trainImages.px);
       const x = augment(raw, rnd);
-      loss += accumulate(model, gW, gB, x, trainLabels[n]);
+      loss += accumulate(model, gW, gB, x, trainLabels[n], rnd);
 
       if ((k + 1) % BATCH === 0 || k === order.length - 1) {
         t++;
