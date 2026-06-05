@@ -86,7 +86,7 @@ export class Hud {
     bar.appendChild(
       group('Brain', [
         button('🧠 Trained', 'hud-trained', cb.onTrained),
-        button('⟳ Random', 'hud-rand', cb.onRandomize),
+        button('⟳ Show untrained brain', 'hud-rand', cb.onRandomize),
       ]),
     );
     bar.appendChild(group('View', [button('◑ Theme', 'hud-theme', cb.onTheme)]));
@@ -110,7 +110,7 @@ export class Hud {
       ? `Hidden activation: ${fn} 🔒 locked`
       : `Hidden activation: ${fn} — click to change`;
     this.activationHint.textContent = state.activationLocked
-      ? 'fixed to ReLU for the trained model — press ⟳ Random to change it'
+      ? 'fixed to ReLU for the trained model — press “Show untrained brain” to change it'
       : 'press 🧠 Trained to restore the trained model';
     this.edges.title =
       'Connection lines drawn vs. total weights. Only a subset is rendered for performance; all weights are still computed.';
