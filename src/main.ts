@@ -36,6 +36,10 @@ function randomNetwork(seed: number, hidden: TActivationName): TNetwork {
   return createNetwork({
     inputSize: INPUT_SIZE,
     seed,
+    // Heavy-tailed weights + bias noise: a few strong glowing threads and lively
+    // neurons, so the untrained brain looks structured rather than a flat haze.
+    tailPower: 2.4,
+    biasNoise: 0.4,
     layers: [
       { size: 64, activation: hidden },
       { size: 32, activation: hidden },
@@ -176,6 +180,8 @@ function main(): void {
       neuronCounts: sizes,
       activation: state.hiddenActivation,
       activationLocked: state.mode === 'trained',
+      mode: state.mode,
+      accuracy: MODEL_ACCURACY,
       edgesRendered,
       edgesTotal,
       predicted: predict(state.trace),

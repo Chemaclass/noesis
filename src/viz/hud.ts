@@ -24,6 +24,8 @@ export type THudState = {
   readonly neuronCounts: readonly number[];
   readonly activation: TActivationName;
   readonly activationLocked: boolean;
+  readonly mode: 'trained' | 'random';
+  readonly accuracy: number;
   readonly edgesRendered: number;
   readonly edgesTotal: number;
   readonly predicted: number;
@@ -37,8 +39,14 @@ export class Hud {
   private readonly edges: HTMLElement;
   private readonly predicted: HTMLElement;
   private readonly confidence: HTMLElement;
+  private readonly modeBadge: HTMLElement;
 
   constructor(root: HTMLElement, cb: THudCallbacks) {
+    const modeWrap = el('div', 'hud-panel hud-mode');
+    this.modeBadge = el('div', 'hud-mode-badge');
+    modeWrap.appendChild(this.modeBadge);
+    root.appendChild(modeWrap);
+
     const right = el('div', 'hud-panel hud-right');
     this.activationBtn = document.createElement('button');
     this.activationBtn.className = 'hud-btn hud-activation';
@@ -68,18 +76,30 @@ export class Hud {
       b.addEventListener('click', () => cb.onDigit(d));
       digits.appendChild(b);
     }
-    bar.appendChild(digits);
-
-    bar.appendChild(button('✎ Draw', 'hud-draw', cb.onDraw));
-    bar.appendChild(button('▶ Play', 'hud-play', cb.onPlay));
-    bar.appendChild(button('⤓ Step', 'hud-step', cb.onStep));
-    bar.appendChild(button('🧠 Trained', 'hud-trained', cb.onTrained));
-    bar.appendChild(button('⟳ Random', 'hud-rand', cb.onRandomize));
-    bar.appendChild(button('◑ Theme', 'hud-theme', cb.onTheme));
+    bar.appendChild(group('Pick a digit', [digits, button('✎ Draw', 'hud-draw', cb.onDraw)]));
+    bar.appendChild(
+      group('Run the network', [
+        button('▶ Play', 'hud-play', cb.onPlay),
+        button('⤓ Step', 'hud-step', cb.onStep),
+      ]),
+    );
+    bar.appendChild(
+      group('Brain', [
+        button('🧠 Trained', 'hud-trained', cb.onTrained),
+        button('⟳ Random', 'hud-rand', cb.onRandomize),
+      ]),
+    );
+    bar.appendChild(group('View', [button('◑ Theme', 'hud-theme', cb.onTheme)]));
     return bar;
   }
 
   update(state: THudState): void {
+    this.modeBadge.classList.toggle('is-random', state.mode === 'random');
+    this.modeBadge.textContent =
+      state.mode === 'trained'
+        ? `● TRAINED MODEL · ${(state.accuracy * 100).toFixed(1)}% accurate`
+        : '● RANDOM BRAIN · untrained (predictions are noise)';
+
     const fn = ACTIVATION_LABEL[state.activation];
     this.activationBtn.disabled = state.activationLocked;
     this.activationBtn.classList.toggle('locked', state.activationLocked);
@@ -114,6 +134,17 @@ function span(className: string, text: string): HTMLElement {
 
 function label(text: string): HTMLElement {
   return span('hud-label', text);
+}
+
+/** A labeled cluster of controls. */
+function group(title: string, children: readonly HTMLElement[]): HTMLElement {
+  const g = el('div', 'hud-group');
+  const lbl = el('span', 'hud-group-label');
+  lbl.textContent = title;
+  const row = el('div', 'hud-group-row');
+  row.append(...children);
+  g.append(lbl, row);
+  return g;
 }
 
 function button(text: string, className: string, onClick: () => void): HTMLButtonElement {

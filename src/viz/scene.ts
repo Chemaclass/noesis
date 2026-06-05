@@ -55,8 +55,8 @@ export class Scene {
   /** Radius of the input plane, and of the whole network. */
   private inputRadius = 14;
   private netRadius = 30;
-  /** Camera direction: nearly head-on to the input plane, with a slight tilt. */
-  private readonly viewDir = new Vector3(-1, 0.07, 0.12).normalize();
+  /** Camera direction: digit-forward but tilted so the connection fan is visible. */
+  private readonly viewDir = new Vector3(-0.82, 0.3, 0.62).normalize();
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new WebGLRenderer({ canvas, antialias: true });
@@ -164,9 +164,11 @@ export class Scene {
     this.neurons.setLevels(this.levels, this.animator.reveal());
   }
 
-  /** Frame the camera head-on to the input plane (the digit "face"). */
+  /** Frame the whole network, aimed between the digit face and the centre. */
   private frameCamera(): void {
-    this.controls.target.copy(this.faceCenter);
+    // Look slightly toward the input plane so the digit stays prominent, but
+    // keep the connection fan in frame (where Trained vs Random differs).
+    this.controls.target.set(this.faceCenter.x * 0.35, 0, 0);
     this.fitCamera();
   }
 
@@ -178,13 +180,12 @@ export class Scene {
     return (radius / Math.sin(minHalf)) * 1.12;
   }
 
-  /** Place the camera facing the input plane, framing the digit. */
+  /** Place the camera to frame the whole network. */
   private fitCamera(): void {
-    const dist = this.fitDistance(this.inputRadius);
+    const dist = this.fitDistance(this.netRadius);
     this.camera.position.copy(this.viewDir).multiplyScalar(dist).add(this.controls.target);
-    this.controls.minDistance = dist * 0.4;
-    // allow zooming out far enough to see the whole network from any angle
-    this.controls.maxDistance = this.fitDistance(this.netRadius) * 1.8;
+    this.controls.minDistance = this.fitDistance(this.inputRadius) * 0.5;
+    this.controls.maxDistance = dist * 2.2;
     this.controls.update();
   }
 

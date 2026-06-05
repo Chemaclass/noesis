@@ -12,7 +12,21 @@ export type TNetworkSpec = {
   readonly inputSize: number;
   readonly layers: readonly TLayerSpec[];
   readonly seed?: number;
+  /**
+   * Tail heaviness of the weight distribution (sign-preserving power on a
+   * Gaussian). 1 = plain He init (uniform-looking field). Higher values make a
+   * few connections strong and most faint — a more structured, "interesting"
+   * look for the untrained showcase. Default 1.
+   */
+  readonly tailPower?: number;
+  /** Random bias spread, so neurons have varied baselines. Default 0. */
+  readonly biasNoise?: number;
 };
+
+/** Sign-preserving power: keeps direction, reshapes magnitude. */
+function signedPow(x: number, p: number): number {
+  return Math.sign(x) * Math.pow(Math.abs(x), p);
+}
 
 /**
  * Build a fully-connected network with random (He-ish scaled) weights.
@@ -20,6 +34,8 @@ export type TNetworkSpec = {
  */
 export function createNetwork(spec: TNetworkSpec): TNetwork {
   const rng = mulberry32(spec.seed ?? 1);
+  const tail = spec.tailPower ?? 1;
+  const biasNoise = spec.biasNoise ?? 0;
   const layers: TLayer[] = [];
   let inputSize = spec.inputSize;
 
@@ -30,9 +46,9 @@ export function createNetwork(spec: TNetworkSpec): TNetwork {
 
     for (let j = 0; j < layerSpec.size; j++) {
       const row: number[] = new Array<number>(inputSize);
-      for (let i = 0; i < inputSize; i++) row[i] = gaussian(rng) * scale;
+      for (let i = 0; i < inputSize; i++) row[i] = signedPow(gaussian(rng), tail) * scale;
       weights.push(row);
-      biases.push(0);
+      biases.push(biasNoise ? gaussian(rng) * biasNoise : 0);
     }
 
     layers.push({

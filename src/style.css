@@ -131,22 +131,75 @@ body {
 
 .hud-controls {
   position: absolute;
-  bottom: 16px;
+  bottom: 14px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 8px;
-  align-items: center;
+  gap: 10px;
+  align-items: flex-end;
   max-width: calc(100vw - 360px);
   pointer-events: auto;
 }
 
+.hud-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 8px 5px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  backdrop-filter: blur(3px);
+}
+
+.hud-group-label {
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--dim);
+  padding-left: 2px;
+}
+
+.hud-group-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
 .hud-digits {
   display: flex;
-  gap: 4px;
-  margin-right: 8px;
+  gap: 3px;
+}
+
+/* ---------- model badge ---------- */
+.hud-mode {
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0;
+  background: none;
+  border: none;
+}
+
+.hud-mode-badge {
+  padding: 7px 16px;
+  border-radius: 999px;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  font-weight: bold;
+  color: #04101f;
+  background: var(--cyan);
+  border: 1px solid var(--cyan);
+  box-shadow: 0 0 18px var(--glow);
+}
+
+.hud-mode-badge.is-random {
+  color: #2a0f17;
+  background: #ffb347;
+  border-color: #ffb347;
+  box-shadow: 0 0 18px rgba(255, 179, 71, 0.5);
 }
 
 .hud-btn {
