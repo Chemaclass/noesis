@@ -162,7 +162,9 @@ export class Scene {
 
   private applyLevels(): void {
     if (!this.neurons) return;
-    this.neurons.setLevels(this.levels, this.animator.reveal(), this.animator.pulse());
+    const pulse = this.animator.pulse();
+    this.neurons.setLevels(this.levels, this.animator.reveal(), pulse);
+    this.connections?.setPulse(pulse);
   }
 
   /** Frame the whole network, aimed between the digit face and the centre. */

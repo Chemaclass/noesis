@@ -25,9 +25,15 @@ export type TConnectionStats = {
  * brightness scales with |weight| (faint threads, like the inspiration images);
  * hue encodes sign. Subsampled when a layer-pair has too many edges.
  */
+/** Vertex range (in the color buffer) belonging to one layer-pair. */
+type TPairRange = { readonly li: number; readonly start: number; readonly count: number };
+
 export class Connections {
   readonly object: LineSegments;
   readonly stats: TConnectionStats;
+  private readonly base: Float32Array;
+  private readonly colorAttr: Float32BufferAttribute;
+  private readonly ranges: TPairRange[] = [];
 
   constructor(network: TNetwork, layout: TLayout) {
     const verts: number[] = [];
@@ -50,6 +56,7 @@ export class Connections {
       const toPos = layout.positions[li + 1];
       if (!fromPos || !toPos) return;
 
+      const startVert = verts.length / 3;
       const pairTotal = layer.size * layer.inputSize;
       total += pairTotal;
       const keepProb = Math.min(1, MAX_EDGES_PER_PAIR / pairTotal);
@@ -74,11 +81,15 @@ export class Connections {
           rendered++;
         }
       }
+      const endVert = verts.length / 3;
+      this.ranges.push({ li, start: startVert, count: endVert - startVert });
     });
 
     const geometry = new BufferGeometry();
     geometry.setAttribute('position', new Float32BufferAttribute(verts, 3));
-    geometry.setAttribute('color', new Float32BufferAttribute(colors, 3));
+    this.colorAttr = new Float32BufferAttribute(colors, 3);
+    geometry.setAttribute('color', this.colorAttr);
+    this.base = Float32Array.from(colors);
     const material = new LineBasicMaterial({
       vertexColors: true,
       transparent: true,
@@ -90,6 +101,23 @@ export class Connections {
 
     this.object = new LineSegments(geometry, material);
     this.stats = { rendered, total };
+  }
+
+  /**
+   * Brighten each layer-pair's edges as the wave front crosses it. `pulse` is the
+   * per-layer bell (length = layers + 1); a pair li uses the mean of its two
+   * endpoint layers. Pulse 0 restores the baked base colors.
+   */
+  setPulse(pulse: readonly number[]): void {
+    const GAIN = 1.8;
+    const arr = this.colorAttr.array as Float32Array;
+    for (const { li, start, count } of this.ranges) {
+      const p = ((pulse[li] ?? 0) + (pulse[li + 1] ?? 0)) / 2;
+      const f = 1 + p * GAIN;
+      const end = (start + count) * 3;
+      for (let k = start * 3; k < end; k++) arr[k] = (this.base[k] ?? 0) * f;
+    }
+    this.colorAttr.needsUpdate = true;
   }
 
   dispose(): void {
