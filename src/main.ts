@@ -38,8 +38,10 @@ function randomNetwork(seed: number, hidden: TActivationName): TNetwork {
     seed,
     // Heavy-tailed weights + bias noise: a few strong glowing threads and lively
     // neurons, so the untrained brain looks structured rather than a flat haze.
+    // weightGain spreads the logits so the output bars are dynamic per digit.
     tailPower: 2.4,
     biasNoise: 0.4,
+    weightGain: 2.0,
     layers: [
       { size: 64, activation: hidden },
       { size: 32, activation: hidden },

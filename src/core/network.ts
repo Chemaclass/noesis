@@ -21,6 +21,9 @@ export type TNetworkSpec = {
   readonly tailPower?: number;
   /** Random bias spread, so neurons have varied baselines. Default 0. */
   readonly biasNoise?: number;
+  /** Multiplier on weight scale. >1 spreads activations/logits so the output
+   * distribution is peakier and varies per input. Default 1. */
+  readonly weightGain?: number;
 };
 
 /** Sign-preserving power: keeps direction, reshapes magnitude. */
@@ -36,11 +39,12 @@ export function createNetwork(spec: TNetworkSpec): TNetwork {
   const rng = mulberry32(spec.seed ?? 1);
   const tail = spec.tailPower ?? 1;
   const biasNoise = spec.biasNoise ?? 0;
+  const gain = spec.weightGain ?? 1;
   const layers: TLayer[] = [];
   let inputSize = spec.inputSize;
 
   for (const layerSpec of spec.layers) {
-    const scale = Math.sqrt(2 / inputSize);
+    const scale = Math.sqrt(2 / inputSize) * gain;
     const weights: number[][] = [];
     const biases: number[] = [];
 
