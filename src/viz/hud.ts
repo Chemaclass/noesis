@@ -33,6 +33,7 @@ export type THudState = {
 /** Telemetry + controls overlay. Pure DOM, sits on top of the WebGL canvas. */
 export class Hud {
   private readonly activationBtn: HTMLButtonElement;
+  private readonly activationHint: HTMLElement;
   private readonly edges: HTMLElement;
   private readonly predicted: HTMLElement;
   private readonly confidence: HTMLElement;
@@ -42,8 +43,9 @@ export class Hud {
     this.activationBtn = document.createElement('button');
     this.activationBtn.className = 'hud-btn hud-activation';
     this.activationBtn.addEventListener('click', cb.onActivation);
+    this.activationHint = el('div', 'hud-hint');
     this.edges = el('div', 'hud-edges');
-    right.append(this.activationBtn, this.edges);
+    right.append(this.activationBtn, this.activationHint, this.edges);
     root.appendChild(right);
 
     const readout = el('div', 'hud-panel hud-readout');
@@ -87,6 +89,9 @@ export class Hud {
     this.activationBtn.textContent = state.activationLocked
       ? `Hidden activation: ${fn} 🔒 locked`
       : `Hidden activation: ${fn} — click to change`;
+    this.activationHint.textContent = state.activationLocked
+      ? 'fixed to ReLU for the trained model — press ⟳ Random to change it'
+      : 'press 🧠 Trained to restore the trained model';
     this.edges.title =
       'Connection lines drawn vs. total weights. Only a subset is rendered for performance; all weights are still computed.';
     this.edges.textContent = `Connections shown: ${fmt(state.edgesRendered)} / ${fmt(state.edgesTotal)}`;
