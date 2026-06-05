@@ -70,8 +70,9 @@ export class Scene {
     this.controls = new OrbitControls(this.camera, canvas);
     this.controls.enableDamping = true;
     this.controls.enablePan = false;
-    // Start framed on the digit face; user can orbit to watch the layer sweep.
-    this.controls.autoRotate = false;
+    // Start framed on the digit face, then slowly orbit to reveal the network.
+    this.controls.autoRotate = true;
+    this.controls.autoRotateSpeed = 0.5;
 
     const renderPass = new RenderPass(this.scene, this.camera);
     // Modest bloom: only the brightest (firing neurons) blooms, not every line.
