@@ -1,0 +1,17 @@
+node_modules/
+dist/
+*.local
+.DS_Store
+.idea/
+
+# agnostic-ai — generated outputs. Source of truth lives in .agnostic-ai/.
+# Run `agnostic-ai sync` to (re)generate these locally.
+.claude/
+.codex/
+CLAUDE.md
+AGENTS.md
+
+# agnostic-ai housekeeping
+agnostic-ai.local.yaml
+.agnostic-ai/.sync-state
+.agnostic-ai/packs/
