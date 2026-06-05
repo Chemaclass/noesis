@@ -1,0 +1,15 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Chemaclass/agnostic-ai/main/docs/schemas/config.schema.json
+# One source of truth for AI assistant configs. Edit specs under .agnostic-ai/
+# then run `agnostic-ai sync`. Generated configs (.claude/, AGENTS.md, …) are committed.
+version: 1
+
+sources:
+  agents: .agnostic-ai/agents
+  skills: .agnostic-ai/skills
+  rules: .agnostic-ai/rules
+
+targets:
+  - claude
+  - codex
+
+on-unsupported: warn
