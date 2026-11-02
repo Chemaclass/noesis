@@ -1,27 +1,16 @@
 ---
 name: architecture
-description: Engine/visualization layering — the engine must stay pure and testable.
+description: Layering rules that keep the engine pure and testable.
 globs: "src/**"
 alwaysApply: true
 ---
 
-noesis is a React + TypeScript app: a feedforward neural-network simulator with a
-Three.js visualization. It is organized in layers; dependencies point inward
-(`ui → app → domain`):
+Dependencies point inward: `ui -> app -> domain`.
 
-- **`src/domain/` is the pure engine.** Zero runtime dependencies. Never import
-  React, Three.js, or touch the DOM. The testable "brain": activations, layers,
-  forward pass, RNG, network construction.
-- **`src/app/` is the application layer.** Framework-agnostic services (inference,
-  networks, preprocessing) and the `useNoesis` React state hook. Depends on
-  `domain`, never on `rendering` internals beyond types.
-- **`src/rendering/` is the Three.js engine.** Imperative classes (Scene, Neurons,
-  Connections, signals, palette). May depend on `domain`, never the reverse.
-  **`src/rendering/layout.ts` stays pure** (no Three.js) so it's unit-testable.
-- **`src/ui/` is presentation.** React components only. `SceneCanvas` is the bridge
-  to the imperative engine (useEffect + ref). No business logic here — call the hook.
-- **`src/data/` + `public/model.json`** load the trained weights (fetched asset).
+- `src/domain/`: pure engine (activations, layers, forward pass, RNG, network construction). No runtime dependencies; never import React or Three.js, never touch the DOM.
+- `src/app/`: framework-agnostic services (inference, networks, preprocessing) and the `useNoesis` hook. Depends on `domain`; from `rendering` only types.
+- `src/rendering/`: imperative Three.js classes. May depend on `domain`, never the reverse. `layout.ts` stays free of Three.js.
+- `src/ui/`: React components only. `SceneCanvas` bridges to the engine (useEffect and ref). No business logic: call the hook.
+- `src/data/` and `public/model.json`: trained weights, loaded as a fetched asset.
 
-When adding a feature: math in `domain`, orchestration/state in `app`, geometry in
-`layout`, rendering in `rendering`, markup in `ui`. If `domain` ever imports React
-or Three.js, the design is wrong.
+Place new code: math in `domain`, state in `app`, geometry in `layout`, drawing in `rendering`, markup in `ui`.

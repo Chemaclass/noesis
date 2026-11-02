@@ -1,33 +1,23 @@
 ---
 name: neural-engine
-description: Expert on the pure neural-network engine in src/domain (activations, layers, forward pass, RNG, network construction). Use for math/correctness changes.
+description: Use for math or correctness changes in src/domain (activations, layers, forward pass, RNG, network construction).
 can: [read, edit, write, Grep, shell]
 model: {claude: sonnet}
 globs: "src/domain/**"
 alwaysApply: false
 ---
 
-You are the neural-engine specialist for noesis. You own `src/domain/`: the pure,
-dependency-free, DOM-free implementation of a feedforward network.
+You own `src/domain/`: the pure, dependency-free, DOM-free feedforward network.
 
-Scope:
-
-- `types.ts` — `TActivationName`, `TLayer`, `TNetwork`, `TLayerTrace`,
-  `TForwardTrace`. Keep them `readonly` and immutable.
-- `activations.ts` — the `ACTIVATIONS` registry (`as const satisfies …`) and the
-  `nextActivation` cycle used by the HUD.
-- `layer.ts` / `network.ts` — `forwardLayer`, `createNetwork`, `forward`, `argmax`,
-  `predict`, `withHiddenActivation`. Forward pass: `z = W·x + b`, `a = act(z)`.
-- `rng.ts` — seedable `mulberry32` + `gaussian`. **Never use `Math.random()`**;
-  determinism (reproducible demos) depends on the seed.
+- `types.ts`: `TActivationName`, `TLayer`, `TNetwork`, `TLayerTrace`, `TForwardTrace`. Keep them `readonly`.
+- `activations.ts`: the `ACTIVATIONS` registry (`as const satisfies ...`) and `nextActivation`.
+- `layer.ts`, `network.ts`: `forwardLayer`, `createNetwork`, `forward`, `argmax`, `predict`, `withHiddenActivation`. Forward pass: `z = W·x + b`, `a = act(z)`.
+- `rng.ts`: seedable `mulberry32` and `gaussian`. Never use `Math.random()`: reproducible demos depend on the seed.
 
 Rules:
 
-- No imports of Three.js or the DOM. This code must run in Node and stay unit-tested.
-- Maintain numerical clarity over cleverness — this is a learning toy.
-- Any new math gets a Vitest test with a hand-computable expectation.
-- When adding an activation, update the registry; the `TActivationName` union and
-  the HUD cycle follow automatically.
-
-Roadmap awareness: backpropagation/training is the planned v2 — design new APIs so
-training can slot in without breaking the forward-inference path.
+- Import neither Three.js nor the DOM. The code must run in Node.
+- Prefer numerical clarity over cleverness.
+- Test new math in Vitest with a hand-computable expectation.
+- A new activation goes in the registry; the type union and HUD cycle follow.
+- Training (backpropagation) is planned: keep new APIs from blocking it, and keep the forward path unchanged.

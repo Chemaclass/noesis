@@ -1,24 +1,19 @@
 ---
 name: verify
-description: Run the full noesis quality gate — typecheck, lint, tests, and build — and report what passes or fails.
+description: Use to run the full quality gate (typecheck, lint, tests, build) before a PR.
 globs: "**/*"
 alwaysApply: false
 ---
 
-Run the project's full quality gate and report results concisely.
+Run in order and report pass or fail for each:
 
 ```bash
-npm run typecheck   # tsc --noEmit, strict
-npm run lint        # ESLint, type-checked rules
-npm test            # Vitest: engine + layout (DOM-free)
-npm run build       # tsc + vite production build
+npm run typecheck
+npm run lint
+npm test
+npm run build
 ```
 
-Guidance:
-
-- Run them in this order; `typecheck` and `test` catch the most issues fastest.
-- All four must be green before a PR.
-- For a quick visual check of rendering changes, `npm run dev` and open the printed
-  localhost URL: pick a digit, hit Play, confirm the signal wave and bloom render.
-- If something fails, quote the exact error and fix the root cause — don't loosen
-  `tsconfig` or disable lint rules to make it pass.
+- All four must pass before a PR.
+- For rendering changes also run `npm run dev`: pick a digit, press Play, confirm the signal wave and bloom.
+- On failure, quote the error and fix the cause. Do not loosen `tsconfig` or disable lint rules.
