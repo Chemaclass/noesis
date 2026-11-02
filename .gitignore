@@ -8,13 +8,21 @@ dist/
 # Run `agnostic-ai sync` to (re)generate these locally.
 .claude/
 .codex/
+.agents/
 CLAUDE.md
 AGENTS.md
 
 # agnostic-ai housekeeping
-agnostic-ai.local.yaml
-.agnostic-ai/.sync-state
-.agnostic-ai/packs/
 
 # training cache
 scripts/.cache/
+
+# >>> agnostic-ai (managed) >>>
+# Generated paths. Edit specs, not this block. Run `agnostic-ai sync` to refresh.
+# Not committed: a fresh clone or `git worktree` lacks these until `agnostic-ai sync` runs (e.g. a post-checkout hook).
+/.agnostic-ai/.command-lock
+/.agnostic-ai/.sync-state
+/.agnostic-ai/local/
+/.agnostic-ai/packs/
+/agnostic-ai.local.yaml
+# <<< agnostic-ai (managed) <<<

@@ -1,8 +1,8 @@
 ---
 name: viz-renderer
 description: Expert on the Three.js visualization in src/rendering (scene, bloom, instanced neurons, connection field, signal animation, HUD). Use for rendering/visual changes.
-tools: [Read, Edit, Write, Grep, Bash]
-model: sonnet
+can: [read, edit, write, Grep, shell]
+model: {claude: sonnet}
 globs: "src/rendering/**"
 alwaysApply: false
 ---

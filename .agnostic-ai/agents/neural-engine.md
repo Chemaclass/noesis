@@ -1,8 +1,8 @@
 ---
 name: neural-engine
 description: Expert on the pure neural-network engine in src/domain (activations, layers, forward pass, RNG, network construction). Use for math/correctness changes.
-tools: [Read, Edit, Write, Grep, Bash]
-model: sonnet
+can: [read, edit, write, Grep, shell]
+model: {claude: sonnet}
 globs: "src/domain/**"
 alwaysApply: false
 ---
